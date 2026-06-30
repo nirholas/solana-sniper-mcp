@@ -81,17 +81,29 @@ export async function createSniperApiRouter(deps = {}) {
 		solana: deps.payTo?.solana || process.env.X402_PAY_TO_SOLANA || null,
 		base: deps.payTo?.base || process.env.X402_PAY_TO_BASE || null,
 	};
+	// PayAI's Solana facilitator rejects an accept without a sponsor fee-payer, and
+	// paid() throws a 500 at challenge time if asked to advertise a Solana lane it
+	// can't honor. Resolve the fee-payer first so we can actually self-disable the
+	// Solana lane when it's absent — dropping to the Base lane (or the 503 guard)
+	// instead of 500-ing every paid request.
+	const feePayer = deps.feePayer || process.env.X402_FEE_PAYER_SOLANA || undefined;
+
 	const lanes = {};
-	if (payTo.solana) lanes.solana = payTo.solana;
+	if (payTo.solana && feePayer) {
+		lanes.solana = payTo.solana;
+	} else if (payTo.solana && !feePayer) {
+		// eslint-disable-next-line no-console -- one-time boot warning, not per-request noise.
+		console.warn(
+			'[agent-sniper] X402_PAY_TO_SOLANA is set but X402_FEE_PAYER_SOLANA is not — ' +
+			'the Solana lane needs a facilitator sponsor fee-payer and has been disabled. ' +
+			'Set X402_FEE_PAYER_SOLANA to enable it; the Base lane (if configured) is unaffected.',
+		);
+	}
 	if (payTo.base) lanes.base = payTo.base;
 	const x402Configured = Object.keys(lanes).length > 0;
 
 	const prices = { ...DEFAULT_PRICES, ...(deps.prices || {}) };
 	const facilitator = deps.facilitatorUrl || process.env.X402_FACILITATOR_URL || undefined;
-	// PayAI's Solana facilitator rejects an accept without a sponsor fee-payer.
-	// Forward it from env when present; without it the Solana lane self-disables
-	// to the Base lane (or the 503 guard) rather than erroring at challenge time.
-	const feePayer = process.env.X402_FEE_PAYER_SOLANA || undefined;
 
 	const router = express.Router();
 	router.use(express.json({ limit: '64kb' }));
