@@ -1,0 +1,76 @@
+{
+	"name": "@three-ws/agent-sniper",
+	"version": "0.1.0",
+	"description": "Lightweight, embeddable pump.fun sniper engine for 3D AI agents — multi-agent, multi-user, with pluggable wallet/store/RPC adapters. Library + CLI + MCP server + x402 paid API.",
+	"type": "module",
+	"license": "MIT",
+	"author": "three.ws",
+	"homepage": "https://three.ws",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/nirholas/agent-sniper.git"
+	},
+	"keywords": [
+		"solana",
+		"pumpfun",
+		"sniper",
+		"trading-bot",
+		"ai-agent",
+		"mcp",
+		"x402",
+		"3d-agent",
+		"memecoin"
+	],
+	"engines": {
+		"node": ">=20"
+	},
+	"bin": {
+		"agent-sniper": "bin/agent-sniper.js"
+	},
+	"main": "src/index.js",
+	"exports": {
+		".": "./src/index.js",
+		"./mcp": "./src/faces/mcp.js",
+		"./api": "./src/faces/api.js",
+		"./adapters/store/memory": "./src/adapters/store/memory.js",
+		"./adapters/store/sqlite": "./src/adapters/store/sqlite.js",
+		"./adapters/wallet/self-custody": "./src/adapters/wallet/self-custody.js",
+		"./adapters/wallet/custodial": "./src/adapters/wallet/custodial.js",
+		"./adapters/solana/pump-client": "./src/adapters/solana/pump-client.js",
+		"./adapters/feed/pumpportal": "./src/adapters/feed/pumpportal.js",
+		"./agents": "./src/agents/manifest.js"
+	},
+	"files": [
+		"src",
+		"bin",
+		"assets",
+		"README.md",
+		"LICENSE",
+		".env.example"
+	],
+	"scripts": {
+		"start": "node bin/agent-sniper.js run",
+		"mcp": "node bin/agent-sniper.js mcp",
+		"serve": "node bin/agent-sniper.js serve",
+		"test": "vitest run"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.29.0",
+		"@pump-fun/pump-sdk": "^1.36.0",
+		"@pump-fun/pump-swap-sdk": "^1.17.0",
+		"@solana/spl-token": "^0.4.14",
+		"@solana/web3.js": "^1.98.4",
+		"@three-ws/x402-server": "^0.1.0",
+		"bn.js": "^5.2.3",
+		"bs58": "^6.0.0",
+		"ws": "^8.21.0",
+		"zod": "^3.23.8"
+	},
+	"optionalDependencies": {
+		"better-sqlite3": "^11.0.0",
+		"express": "^5.2.1"
+	},
+	"devDependencies": {
+		"vitest": "^4.1.7"
+	}
+}
