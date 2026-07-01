@@ -14,9 +14,8 @@
 		}
 	],
 	"repository": {
-		"url": "https://github.com/nirholas/three.ws",
-		"source": "github",
-		"subfolder": "packages/agent-sniper"
+		"url": "https://github.com/nirholas/agent-sniper",
+		"source": "github"
 	},
 	"version": "0.1.0",
 	"packages": [

@@ -378,4 +378,7 @@ npm test            # vitest run
 
 ## License
 
-MIT — see [LICENSE](./LICENSE). Copyright © three.ws.
+Copyright © 2026 nirholas. All rights reserved.
+
+This software is proprietary — see [LICENSE](./LICENSE). No rights are granted
+without the express written permission of the copyright owner.
