@@ -1,4 +1,4 @@
-# @three-ws/agent-sniper
+# @three-ws/agent-sniper 
 
 A lightweight, embeddable pump.fun sniper engine for 3D AI agents. One trade
 loop — feed a stream of new launches, score each against a per-agent strategy,
