@@ -17,12 +17,12 @@
 		"url": "https://github.com/nirholas/agent-sniper",
 		"source": "github"
 	},
-	"version": "0.1.0",
+	"version": "0.1.3",
 	"packages": [
 		{
 			"registryType": "npm",
 			"identifier": "@three-ws/agent-sniper",
-			"version": "0.1.0",
+			"version": "0.1.3",
 			"runtimeHint": "npx",
 			"transport": {
 				"type": "stdio"
