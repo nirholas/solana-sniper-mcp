@@ -147,6 +147,46 @@
  * (adapters/solana/pump-client.js) is built on @pump-fun/pump-sdk; swap it to
  * route quotes/builds through any venue.
  *
+ * ── Contract for a PumpSwap (post-graduation) adapter ────────────────────────
+ * The default adapter prices the pump program's bonding curve. If you implement
+ * one that routes through the PumpSwap AMM (@pump-fun/pump-swap-sdk >= 1.19.0),
+ * quotes must price against the pool's EFFECTIVE quote reserve:
+ *
+ *     effective_quote_reserves = pool_quote_token_account.amount
+ *                              + pool.virtual_quote_reserves
+ *
+ * `pool.virtual_quote_reserves` is an appended Pool field carrying a non-zero
+ * value on launchpad coins from 2026-07-20; it is 0 elsewhere, where effective
+ * equals the vault balance and nothing changes. The base side is unchanged:
+ * still the raw pool_base_token_account.amount.
+ *
+ * Three ways to get this wrong, all of which produce bad numbers rather than an
+ * error, so mind them:
+ *
+ *   1. Double-counting. The SDK's standalone quote functions (buyQuoteInput /
+ *      sellBaseInput) take `virtualQuoteReserves` as its OWN argument and do the
+ *      addition internally. Pass the RAW vault balance as `quoteReserve`
+ *      alongside it. Passing an already-summed reserve prices the trade against
+ *      double the virtual liquidity. The SDK's instance methods
+ *      (PumpAmmSdk#buyQuoteInput) read the field off the swap state themselves
+ *      and need nothing extra.
+ *   2. Silently defaulting to 0. That argument defaults to 0, so omitting it
+ *      prices off the raw vault balance with no error and no warning. Your own
+ *      spot-price / price-impact / market-cap math must use the effective figure
+ *      directly.
+ *   3. Failing a tradable pool as empty. A liquidity gate must judge depth on
+ *      the effective reserve; a launchpad pool can hold real quote-side depth
+ *      virtually and reads as an empty pool on the vault balance alone.
+ *
+ * Do not confuse `Pool.virtual_quote_reserves` (post-graduation, the new field
+ * above) with `BondingCurve.virtual_quote_reserves` (pre-graduation, the field
+ * formerly spelled `virtual_sol_reserves`). Same name, different accounts,
+ * different quantities; a coin has one or the other, never both.
+ *
+ * Whatever the venue: return a real `priceImpactPct` and a real `quoteMint`, or
+ * throw. Never substitute 0 or an assumed wSOL: the entry breaker and the
+ * require_sol_quote gate both read as PASS on a missing value.
+ *
  * @typedef {object} SolanaClient
  * @property {import('@solana/web3.js').Connection} connection
  * @property {(p: BuyQuoteReq) => Promise<TradeQuote>} quoteForBuy
@@ -169,9 +209,15 @@
  * @property {number} slippagePct
  *
  * @typedef {object} TradeQuote
- * @property {number} priceImpactPct
- * @property {bigint} [expectedQuoteOut]      sell quotes
+ * @property {number} priceImpactPct          must be finite; throw rather than report 0 for "unknown"
+ * @property {bigint} [expectedQuoteOut]      sell quotes; must be > 0n, never 0 for "unpriced"
  * @property {import('@solana/web3.js').PublicKey} [quoteMint]
+ * @property {bigint} [quoteReserve]          AMM adapters: raw pool_quote_token_account.amount
+ * @property {bigint} [virtualQuoteReserves]  AMM adapters: pool.virtual_quote_reserves
+ * @property {bigint} [effectiveQuoteReserve] AMM adapters: quoteReserve + virtualQuoteReserves,
+ *   the figure the quote was actually priced against. Report all three when the
+ *   venue exposes them so a caller can reproduce the number; omit all three on a
+ *   bonding-curve venue, which has no pool.
  *
  * @typedef {object} BuiltTrade
  * @property {import('@solana/web3.js').TransactionInstruction[]} instructions

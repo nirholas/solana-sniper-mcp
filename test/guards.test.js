@@ -5,6 +5,7 @@ import {
 	checkDailyBudgetLamports,
 	checkSolHeadroom,
 	checkPriceImpact,
+	snipeConfidence,
 	makeThrottle,
 	makeQueue,
 	SOL_FEE_HEADROOM_LAMPORTS,
@@ -84,6 +85,52 @@ describe('checkPriceImpact', () => {
 
 	it('breaches when impact exceeds the max', () => {
 		expect(checkPriceImpact(11, 10)).toEqual({ reason: 'price_impact_too_high' });
+	});
+
+	// An armed gate must never be satisfied by the absence of a number. A quote
+	// that failed to price (a pool decoded to empty reserves, an adapter that
+	// omitted the field) yields undefined/NaN, and `NaN > 10` is false, so this
+	// used to wave the trade through as if impact were zero.
+	it('fails closed when the impact figure is missing or not a number', () => {
+		expect(checkPriceImpact(undefined, 10)).toEqual({ reason: 'price_impact_unknown' });
+		expect(checkPriceImpact(null, 10)).toEqual({ reason: 'price_impact_unknown' });
+		expect(checkPriceImpact(NaN, 10)).toEqual({ reason: 'price_impact_unknown' });
+		expect(checkPriceImpact('not-a-number', 10)).toEqual({ reason: 'price_impact_unknown' });
+		expect(checkPriceImpact(Infinity, 10)).toEqual({ reason: 'price_impact_unknown' });
+	});
+
+	// A real, genuinely zero impact is still a pass: the guard distinguishes
+	// "no impact" from "no number".
+	it('passes a real zero impact', () => {
+		expect(checkPriceImpact(0, 10)).toBe(null);
+	});
+
+	// With no gate armed there is nothing to fail closed on.
+	it('stays open when the gate is unset even if the impact is unknown', () => {
+		expect(checkPriceImpact(undefined, 0)).toBe(null);
+	});
+});
+
+describe('snipeConfidence', () => {
+	it('scores a clean, low-impact entry above a high-impact one', () => {
+		const low = snipeConfidence({ priceImpactPct: 1, maxImpactPct: 10, firewallVerdict: 'allow' });
+		const high = snipeConfidence({ priceImpactPct: 9, maxImpactPct: 10, firewallVerdict: 'allow' });
+		expect(low).toBeGreaterThan(high);
+	});
+
+	// The ledger records conviction. An unpriced quote is LOW conviction, not a
+	// NaN hole in the audit trail.
+	it('takes the full impact penalty (never NaN) on an unusable impact figure', () => {
+		const unknown = snipeConfidence({ priceImpactPct: undefined, maxImpactPct: 10, firewallVerdict: null });
+		expect(Number.isFinite(unknown)).toBe(true);
+		// Same as a quote that consumed the entire impact allowance.
+		expect(unknown).toBeCloseTo(snipeConfidence({ priceImpactPct: 10, maxImpactPct: 10, firewallVerdict: null }), 10);
+		expect(unknown).toBeLessThan(snipeConfidence({ priceImpactPct: 0, maxImpactPct: 10, firewallVerdict: null }));
+	});
+
+	it('stays inside 0.05..0.95', () => {
+		expect(snipeConfidence({ priceImpactPct: 1e9, maxImpactPct: 1, firewallVerdict: 'warn' })).toBeGreaterThanOrEqual(0.05);
+		expect(snipeConfidence({ priceImpactPct: 0, maxImpactPct: 10, firewallVerdict: 'allow' })).toBeLessThanOrEqual(0.95);
 	});
 });
 

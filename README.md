@@ -302,6 +302,62 @@ The `Store` contract is the load-bearing one: `getArmedStrategies`,
 `updatePosition`, `getOpenPositions`, and optional `recordSpend`. See the
 in-memory reference at `src/adapters/store/memory.js`.
 
+### Writing a `Solana` adapter: how pump.fun prices
+
+A coin is priced by two different on-chain accounts over its life, and both now
+carry a field spelled `virtual_quote_reserves`. They are not the same quantity.
+A coin has one or the other, never both.
+
+**Before graduation: the pump program `BondingCurve` account.** Spot price is
+`virtual_quote_reserves / virtual_token_reserves`. Those quote-side fields were
+renamed upstream (`virtual_sol_reserves` to `virtual_quote_reserves`,
+`real_sol_reserves` to `real_quote_reserves`) when a non-SOL quote asset became
+possible, and the curve gained a `quote_mint`. This is what the bundled
+`createPumpClient` prices, through `@three-ws/agent-payments`' `PumpTradeClient`,
+which reads the current field names.
+
+**After graduation: the PumpSwap (`pump_amm`) `Pool` account.** Quotes price
+against the **effective** quote reserve:
+
+```
+effective_quote_reserves = pool_quote_token_account.amount + pool.virtual_quote_reserves
+```
+
+`pool.virtual_quote_reserves` is an appended `Pool` field that carries a non-zero
+value on launchpad coins from 2026-07-20 and is `0` on every other pool, where
+the effective reserve equals the vault balance and nothing changes. The base side
+is unchanged: still the raw `pool_base_token_account.amount`. Use
+`@pump-fun/pump-swap-sdk` >= 1.19.0.
+
+Three ways to get the pool path wrong. All three produce bad numbers rather than
+an error, so none of them will announce itself:
+
+1. **Double-counting.** The SDK's standalone quote functions (`buyQuoteInput`,
+   `sellBaseInput`) take `virtualQuoteReserves` as its own argument and add it
+   internally. Pass the **raw** vault balance as `quoteReserve` alongside it.
+   Passing an already-summed reserve prices against double the virtual liquidity.
+   The SDK's instance methods (`PumpAmmSdk#buyQuoteInput`) read the field off the
+   swap state themselves and need nothing extra.
+2. **Silently defaulting to 0.** That argument defaults to `0`, so omitting it
+   prices off the raw vault balance with no error and no warning. Your own spot
+   price, price impact, and market-cap math must use the effective figure.
+3. **Failing a tradable pool as empty.** A liquidity gate has to judge depth on
+   the effective reserve. A launchpad pool can hold real quote-side depth
+   virtually, and reads as an empty pool on the vault balance alone.
+
+Whatever the venue, an adapter must return a real `priceImpactPct` and a real
+`quoteMint`, or throw. Never substitute `0` or an assumed wSOL: the entry
+breaker and the `require_sol_quote` gate both read a missing value as a pass.
+Likewise a sell quote of `0` means the read failed, not that the bag is
+worthless. Report it as an error, or the position sweep computes -100% P&L and
+dumps a healthy position. `TradeQuote` also accepts optional
+`quoteReserve` / `virtualQuoteReserves` / `effectiveQuoteReserve` so an AMM
+adapter can publish the reserves a quote was priced against and let a caller
+reproduce the number.
+
+Upstream reference:
+[pump-public-docs](https://github.com/pump-fun/pump-public-docs#pumpswap-update-virtual-quote-reserves).
+
 ---
 
 ## Configuration
@@ -339,6 +395,12 @@ overrides passed to `createSniper`/`loadConfig` always win. See `.env.example`.
   snipe can't drain the account below the cost of the very next sell's fee.
 - **Price-impact circuit breaker.** `max_price_impact_pct` (default 10) skips a
   buy whose quote impact is too high (`checkPriceImpact`; unset ⇒ no gate).
+- **Quotes fail closed, never to zero.** An armed impact gate refuses a trade
+  whose quote carries no usable `priceImpactPct` (`price_impact_unknown`) rather
+  than reading the absent number as a perfect 0%. A quote with no `quoteMint` is
+  refused rather than assumed to be SOL, and a sell quote of 0 is treated as a
+  failed read: the position sweep holds and re-quotes instead of booking a -100%
+  loss and dumping the bag.
 - **Live-RPC refusal.** Live mode refuses to start on a public RPC — it requires
   a real endpoint so trades aren't silently dropped to rate limits.
 - **Optional firewall hook.** The `assessSafety` hook runs after the quote and

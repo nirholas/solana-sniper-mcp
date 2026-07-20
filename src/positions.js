@@ -22,10 +22,26 @@ async function tickPosition(cfg, pos, ports) {
 	const baseAmount = BigInt(pos.base_amount);
 	const slippagePct = (pos.slippage_bps ?? 500) / 100;
 
+	// Re-quote the bag. This number decides whether the position exits, so an
+	// unusable quote must NOT be read as a valuation.
+	//
+	// A missing or zero expectedQuoteOut means the on-chain read failed (a pool
+	// or curve decoded to empty reserves, an RPC returned nothing), not that the
+	// bag became worthless. Treating it as a value would compute -100% P&L and
+	// dump every open position at the bottom on the very next sweep. Skip the
+	// tick instead and try again; a genuinely dead coin still exits via the
+	// stop-loss once a real quote reports its collapse.
 	let value;
 	try {
 		const quote = await solana.quoteForSell({ mint: mintPk, baseAmount, slippagePct });
-		value = Number(quote.expectedQuoteOut.toString());
+		value = Number(quote?.expectedQuoteOut ?? NaN);
+		if (!Number.isFinite(value) || value <= 0) {
+			log.warn('position re-quote returned no usable value, holding', {
+				mint: pos.mint,
+				quoted: String(quote?.expectedQuoteOut),
+			});
+			return;
+		}
 	} catch (err) {
 		log.warn('position re-quote failed', { mint: pos.mint, err: err?.message });
 		return; // transient — try again next sweep
