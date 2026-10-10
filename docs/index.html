@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>@three-ws/agent-sniper: Lightweight, embeddable pump.fun sniper engine for 3D AI agents</title>
+<meta name="description" content="Lightweight, embeddable pump.fun sniper engine for 3D AI agents — multi-agent, multi-user, with pluggable wallet/store/RPC adapters. Library + CLI + MCP server + x402 paid API.">
+<link rel="canonical" href="https://nirholas.github.io/solana-sniper-mcp/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="three.ws">
+<meta property="og:title" content="@three-ws/agent-sniper">
+<meta property="og:description" content="Lightweight, embeddable pump.fun sniper engine for 3D AI agents — multi-agent, multi-user, with pluggable wallet/store/RPC adapters. Library + CLI + MCP server + x402 paid API.">
+<meta property="og:url" content="https://nirholas.github.io/solana-sniper-mcp/">
+<meta property="og:image" content="https://nirholas.github.io/solana-sniper-mcp/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="@three-ws/agent-sniper">
+<meta name="twitter:description" content="Lightweight, embeddable pump.fun sniper engine for 3D AI agents — multi-agent, multi-user, with pluggable wallet/store/RPC adapters. Library + CLI + MCP server + x402 paid API.">
+<meta name="twitter:image" content="https://nirholas.github.io/solana-sniper-mcp/og.png">
+<meta name="keywords" content="solana, pumpfun, sniper, trading-bot, ai-agent, mcp, x402, 3d-agent, memecoin, model-context-protocol, mcp-server, ai-agents, three.ws">
+<link rel="alternate" type="text/plain" href="llms.txt" title="llms.txt">
+<link rel="icon" href="https://three.ws/three-ws-mcp-icon.svg" type="image/svg+xml">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"@three-ws/agent-sniper","description":"Lightweight, embeddable pump.fun sniper engine for 3D AI agents — multi-agent, multi-user, with pluggable wallet/store/RPC adapters. Library + CLI + MCP server + x402 paid API.","codeRepository":"https://github.com/nirholas/solana-sniper-mcp","programmingLanguage":"JavaScript","license":"https://spdx.org/licenses/Apache-2.0.html","version":"0.1.7","url":"https://nirholas.github.io/solana-sniper-mcp/","author":{"@type":"Organization","name":"three.ws","url":"https://three.ws"},"keywords":"solana, pumpfun, sniper, trading-bot, ai-agent, mcp, x402, 3d-agent, memecoin, model-context-protocol, mcp-server, ai-agents, three.ws"}</script>
+<style>:root{--bg:#fff;--fg:#111418;--mut:#586069;--line:#e3e6ea;--acc:#2563eb;--code:#f4f6f8;--card:#fafbfc}
+@media(prefers-color-scheme:dark){:root{--bg:#0b0d10;--fg:#e8eaed;--mut:#9aa3ad;--line:#232830;--acc:#6ea0ff;--code:#14181d;--card:#10141a}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+a{color:var(--acc)}a:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+header.bar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1100px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{font-weight:700;text-decoration:none;color:var(--fg)}
+.bar nav{margin-left:auto;display:flex;gap:16px;font-size:14px}
+.bar nav a{color:var(--mut);text-decoration:none;transition:color .15s}.bar nav a:hover{color:var(--fg)}
+.hero{max-width:1100px;margin:0 auto;padding:48px 16px 24px}
+.hero h1{font-size:clamp(28px,5vw,44px);line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
+.hero p{color:var(--mut);max-width:70ch;font-size:18px;margin:0 0 24px}
+.install{display:flex;align-items:center;gap:8px;max-width:620px;background:var(--code);border:1px solid var(--line);border-radius:10px;padding:6px 6px 6px 14px}
+.install code{flex:1;overflow-x:auto;white-space:nowrap;font:14px ui-monospace,SFMono-Regular,Menlo,monospace}
+.install button{border:0;background:var(--acc);color:#fff;border-radius:7px;padding:8px 14px;font:600 13px system-ui;cursor:pointer;transition:transform .12s,opacity .12s}
+.install button:hover{opacity:.9}.install button:active{transform:scale(.96)}
+.cta{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.cta a{padding:9px 16px;border:1px solid var(--line);border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;color:var(--fg);transition:border-color .15s,transform .15s}
+.cta a:hover{border-color:var(--acc);transform:translateY(-1px)}.cta a.pri{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.layout{max-width:1100px;margin:0 auto;padding:8px 16px 64px;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:40px}
+@media(max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}.toc{display:none}}
+.toc{position:sticky;top:76px;align-self:start;font-size:14px;border-left:1px solid var(--line);padding-left:16px}
+.toc p{margin:0 0 8px;font-weight:700;color:var(--mut);text-transform:uppercase;font-size:12px;letter-spacing:.06em}
+.toc ul{list-style:none;margin:0;padding:0}.toc li{margin:6px 0}.toc a{color:var(--mut);text-decoration:none}.toc a:hover{color:var(--fg)}
+main{min-width:0;overflow-wrap:anywhere}main pre code{overflow-wrap:normal}main img{max-width:100%;height:auto}
+main h2{margin-top:2.2em;padding-bottom:.3em;border-bottom:1px solid var(--line)}
+.anchor{margin-left:-1.1em;padding-right:.4em;text-decoration:none;opacity:0;color:var(--mut)}h2:hover .anchor,h3:hover .anchor,h4:hover .anchor{opacity:1}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow-x:auto;font-size:14px;line-height:1.5}
+code{font:0.9em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:.15em .35em;border-radius:5px}pre code{background:none;padding:0}
+table{border-collapse:collapse;display:block;overflow-x:auto;max-width:100%}th,td{border:1px solid var(--line);padding:8px 12px;text-align:left}th{background:var(--card)}
+blockquote{margin:1em 0;padding:.2em 1em;border-left:4px solid var(--line);color:var(--mut)}
+footer{border-top:1px solid var(--line);color:var(--mut);font-size:14px}
+.foot-in{max-width:1100px;margin:0 auto;padding:24px 16px;display:flex;gap:16px;flex-wrap:wrap}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}</style>
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+<a class="brand" href="https://nirholas.github.io/solana-sniper-mcp/">@three-ws/agent-sniper</a>
+<nav aria-label="Project links"><a href="https://github.com/nirholas/solana-sniper-mcp">GitHub</a><a href="https://www.npmjs.com/package/@three-ws/agent-sniper">npm</a><a href="llms.txt">llms.txt</a><a href="https://three.ws">three.ws</a></nav>
+</div></header>
+<section class="hero">
+<h1>@three-ws/agent-sniper</h1>
+<p>Lightweight, embeddable pump.fun sniper engine for 3D AI agents — multi-agent, multi-user, with pluggable wallet/store/RPC adapters. Library + CLI + MCP server + x402 paid API.</p>
+<div class="install" role="group" aria-label="Install command"><code>npx -y @three-ws/agent-sniper</code><button type="button" data-copy="npx -y @three-ws/agent-sniper">Copy</button></div>
+<div class="cta"><a class="pri" href="https://github.com/nirholas/solana-sniper-mcp">View on GitHub</a><a href="https://github.com/nirholas/solana-sniper-mcp/stargazers">Star the repo</a><a href="https://registry.modelcontextprotocol.io/?q=io.github.nirholas%2Fagent-sniper">MCP Registry</a></div>
+</section>
+<div class="layout">
+<main id="content"><h1>@three-ws/agent-sniper</h1>
+<p>A lightweight, embeddable pump.fun sniper engine for 3D AI agents. One trade
+loop — feed a stream of new launches, score each against a per-agent strategy,
+run the pre-trade guards, buy, then sweep open positions on an interval and exit
+on stop-loss / take-profit / trailing-stop / timeout / sentiment-flip. It is
+multi-agent and multi-user by construction (one wallet per <code>agentId</code>), and every
+external dependency — wallet custody, persistence, RPC/venue, launch feed — is a
+pluggable adapter, so the same engine runs locally with in-memory state or
+hosted across thousands of tenants. The package ships with four faces over that
+one engine: a <strong>library</strong>, a <strong>CLI</strong>, an <strong>MCP server</strong>, and an <strong>x402 paid HTTP
+API</strong>.</p>
+<hr>
+<h2 id="why-the-adapter-architecture"><a class="anchor" href="#why-the-adapter-architecture" aria-label="Link to this section">#</a>Why — the adapter architecture</h2>
+<p>The engine is pure orchestration. It owns the decision pipeline; it owns nothing
+about <em>where</em> the money, the data, or the chain live. Five adapter interfaces
+(<code>src/types.js</code>) are the seams, and a default implementation ships for each:</p>
+<pre><code>                            ┌──────────────────────────── engine ────────────────────────────┐
+   Feed ──{mint|intel|claim}─▶  score  ──▶  guards  ──▶  executeBuy  ──▶  claimPosition         │
+   (PumpPortal)               (scorer)   (concurrency,    (quote +        (atomic slot)          │
+                                          budget, SOL      build + sign                          │
+                                          headroom,        + broadcast)                          │
+                                          price impact)                                          │
+                                                                  position sweep (every pollMs)  │
+                                                                  ──▶ decideExit ──▶ executeSell │
+                            └────────────────────────────────────────────────────────────────────┘
+        adapters:    Feed          Solana            Wallet           Executor          Store
+                  (launch        (quote/build      (resolve a       (sign +          (strategies,
+                   stream)        pump.fun ix)      Keypair per      broadcast)        positions,
+                                                    agentId)                           spend ledger)
+</code></pre>
+<p>Swap any one without touching the loop: a custodial KMS wallet instead of local
+keys, a Postgres store instead of memory, a different launch feed, a different
+venue. Implement the shape, pass it to <code>createSniper()</code>, done.</p>
+<table>
+<thead>
+<tr>
+<th>Adapter</th>
+<th>Responsibility</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Feed</code></td>
+<td>Push <code>{ kind: &#39;mint&#39;|&#39;intel&#39;|&#39;claim&#39;, data: Candidate }</code> events into the engine.</td>
+</tr>
+<tr>
+<td><code>Solana</code></td>
+<td>Quote + build pump.fun buy/sell instructions; expose a web3 <code>Connection</code>.</td>
+</tr>
+<tr>
+<td><code>Wallet</code></td>
+<td>Resolve a signing <code>Keypair</code> for an <code>agentId</code> (or <code>null</code> if unprovisioned).</td>
+</tr>
+<tr>
+<td><code>Executor</code></td>
+<td>The one place that signs and broadcasts; returns landing telemetry.</td>
+</tr>
+<tr>
+<td><code>Store</code></td>
+<td>Persist strategies, positions, and the daily spend ledger; atomic <code>claimPosition</code>.</td>
+</tr>
+</tbody></table>
+<p>Optional <code>Hooks</code> (firewall <code>assessSafety</code>, <code>oracleGate</code>, <code>onScreen</code>, <code>onBuy</code>,
+<code>onSell</code>, <code>recordDecision</code>) are best-effort cross-cutting callbacks — a throw is
+swallowed and never aborts a trade, except <code>onTip</code>, which is a deliberate veto.</p>
+<hr>
+<h2 id="install"><a class="anchor" href="#install" aria-label="Link to this section">#</a>Install</h2>
+<pre><code class="language-bash">npm i @three-ws/agent-sniper
+</code></pre>
+<p>Optional peers, installed only if you use the face that needs them:</p>
+<pre><code class="language-bash">npm i better-sqlite3   # durable Store (src/adapters/store/sqlite.js)
+npm i express          # the x402 HTTP API face
+</code></pre>
+<p>Requires Node &gt;= 20.</p>
+<hr>
+<h2 id="quickstart-library"><a class="anchor" href="#quickstart-library" aria-label="Link to this section">#</a>Quickstart (library)</h2>
+<p>The <code>presets.local</code> wiring is the zero-to-running path: in-memory store +
+self-custody wallet + pump.fun client + web3 executor + PumpPortal feed. Run it
+in <strong>simulate</strong> mode on <strong>devnet</strong> first — the engine scores, guards, and logs
+every decision but never broadcasts.</p>
+<p>A strategy <strong>must</strong> carry a <code>stop_loss_pct</code> — the engine refuses to arm a
+strategy without one. SOL amounts on a strategy are expressed in <strong>lamports</strong>
+(1 SOL = 1,000,000,000 lamports), as a string, number, or bigint.</p>
+<pre><code class="language-js">import { createSniper, createMemoryStore, presets } from &#39;@three-ws/agent-sniper&#39;;
+
+// 1 SOL = 1e9 lamports.
+const SOL = 1_000_000_000n;
+
+const strategy = {
+  id: &#39;strat_scout_1&#39;,
+  agent_id: &#39;scout&#39;,                  // one wallet per agentId
+  enabled: true,
+  trigger: &#39;new_mint&#39;,                // fire on the create event
+  network: &#39;devnet&#39;,
+  per_trade_lamports: (SOL / 100n).toString(),   // 0.01 SOL per snipe
+  daily_budget_lamports: (SOL / 2n).toString(),  // 0.5 SOL/day ceiling
+  max_concurrent_positions: 3,
+  slippage_bps: 500,                  // 5%
+  max_price_impact_pct: 10,           // entry circuit breaker
+  stop_loss_pct: 30,                  // REQUIRED — exit when down 30%
+  take_profit_pct: 80,                // exit when up 80%
+  trailing_stop_pct: 20,              // exit when down 20% from peak (after profit)
+  max_hold_seconds: 1800,             // hard time-stop
+  require_socials: true,              // skip launches with no twitter/telegram/website
+  max_creator_launches: 10,           // skip serial launchers
+};
+
+const sniper = await presets.local({
+  network: &#39;devnet&#39;,
+  mode: &#39;simulate&#39;,                   // no funds move
+  strategies: [strategy],
+  // secrets: { scout: &#39;&lt;base58 | [byte,array] | 0x-hex secret&gt;&#39; },  // for live mode
+});
+
+await sniper.start();
+
+console.log(sniper.stats());          // { events, candidates, buys, sells, errors, strategies, queued, lastEventAt }
+console.log(sniper.strategies());     // the live armed-strategy cache
+
+// Fire a manual buy by hand (drives the same path as MCP snipe_now):
+sniper.submitCandidate(
+  { mint: &#39;THREEsynthetic1111111111111111111111111111111&#39;, entry_trigger: &#39;manual&#39; },
+  { force: true },
+);
+
+// later…
+await sniper.stop();
+</code></pre>
+<p><code>createSniper(deps)</code> is the lower-level constructor when you want to bring your
+own adapters — pass <code>{ config, store, wallet, solana, executor, feed, hooks }</code>.
+<code>presets.local</code> is just one wiring of it.</p>
+<hr>
+<h2 id="cli-usage"><a class="anchor" href="#cli-usage" aria-label="Link to this section">#</a>CLI usage</h2>
+<p>The package installs an <code>agent-sniper</code> binary. Default mode is <strong>simulate</strong> — it
+will not move funds until you pass <code>--mode live</code> (or set <code>SNIPER_MODE=live</code>),
+which trades <strong>real funds</strong>.</p>
+<pre><code class="language-bash"># Run the engine. Mode defaults to simulate; live trades real funds.
+npx agent-sniper run --network devnet --strategy ./strategy.json
+
+# Serve the engine over MCP (stdio) for Claude / Cursor / any MCP client.
+agent-sniper mcp
+
+# Serve the x402-gated HTTP API + web console (open http://localhost:8787).
+agent-sniper serve
+
+# Help.
+agent-sniper help
+</code></pre>
+<blockquote>
+<p><strong>Safety.</strong> <code>run</code>/<code>serve</code>/<code>mcp</code> all start in simulate mode unless you opt into
+live explicitly. In live mode every armed strategy can spend up to its
+<code>daily_budget_lamports</code> per UTC day. Read <strong>Safety &amp; guardrails</strong> below before
+you flip the switch.</p>
+</blockquote>
+<p><code>--strategy ./strategy.json</code> loads a strategy (or array of strategies) as JSON.
+A minimal file mirrors the object in the Quickstart — note <code>stop_loss_pct</code> is
+required.</p>
+<hr>
+<h2 id="mcp-server"><a class="anchor" href="#mcp-server" aria-label="Link to this section">#</a>MCP server</h2>
+<p><code>agent-sniper mcp</code> exposes the engine as an MCP stdio server. Every tool maps
+1:1 onto a public engine/store method — no internals are reached around. The
+server is unauthenticated and meant to run locally against your own wallet/RPC.</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Kind</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>arm_strategy</code></td>
+<td>write</td>
+<td>Register/update a strategy. SOL → lamports for you; <code>stop_loss_pct</code> mandatory.</td>
+</tr>
+<tr>
+<td><code>disarm_strategy</code></td>
+<td>write</td>
+<td>Disable a strategy (<code>enabled=false</code>); open positions still exit on their rules.</td>
+</tr>
+<tr>
+<td><code>list_strategies</code></td>
+<td>read</td>
+<td>List the armed strategy set the engine is evaluating.</td>
+</tr>
+<tr>
+<td><code>snipe_now</code></td>
+<td>write</td>
+<td>Force a manual buy of a mint across all armed agents (bypasses the scorer).</td>
+</tr>
+<tr>
+<td><code>list_positions</code></td>
+<td>read</td>
+<td>List positions, filter by <code>agentId</code> and/or <code>status</code>.</td>
+</tr>
+<tr>
+<td><code>close_position</code></td>
+<td>write</td>
+<td>Schedule an exit — flips the position&#39;s kill switch; the next sweep sells it.</td>
+</tr>
+<tr>
+<td><code>sniper_status</code></td>
+<td>read</td>
+<td>Engine health: event/candidate/buy/sell counts, armed count, queue depth, network/mode.</td>
+</tr>
+</tbody></table>
+<p>Wire it into an MCP client (Claude Desktop, Cursor, etc.):</p>
+<pre><code class="language-json">{
+  &quot;mcpServers&quot;: {
+    &quot;agent-sniper&quot;: {
+      &quot;command&quot;: &quot;npx&quot;,
+      &quot;args&quot;: [&quot;-y&quot;, &quot;@three-ws/agent-sniper&quot;, &quot;mcp&quot;],
+      &quot;env&quot;: {
+        &quot;SNIPER_NETWORK&quot;: &quot;devnet&quot;,
+        &quot;SNIPER_MODE&quot;: &quot;simulate&quot;
+      }
+    }
+  }
+}
+</code></pre>
+<p><code>createSniperMcpServer(deps)</code> builds the fully-registered server <strong>without</strong>
+connecting a transport, so you can construct it in a test and drive it over an
+in-memory transport.</p>
+<hr>
+<h2 id="x402-paid-http-api"><a class="anchor" href="#x402-paid-http-api" aria-label="Link to this section">#</a>x402 paid HTTP API</h2>
+<p><code>agent-sniper serve</code> (or <code>import { serve } from &#39;@three-ws/agent-sniper/api&#39;</code>)
+mounts the engine over HTTP. Reads are free; the four mutating endpoints are
+gated behind x402 USDC micropayments via <code>@three-ws/x402-server</code> — the
+middleware verifies the <code>X-PAYMENT</code> header against the facilitator, runs the
+work, settles on-chain, and emits the receipt.</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Price</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/health</code></td>
+<td>free</td>
+<td>Liveness + network/mode/stats.</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/status</code></td>
+<td>free</td>
+<td>Full stats + immutable runtime config.</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/strategies</code></td>
+<td>free</td>
+<td>The armed strategy set.</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/positions?agentId=&amp;status=</code></td>
+<td>free</td>
+<td>Positions from the store.</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/activity</code></td>
+<td>free</td>
+<td>The recent engine screen events (what the console feed renders).</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/</code> and <code>/console</code></td>
+<td>free</td>
+<td>The built-in operator console (see below).</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/strategies</code></td>
+<td><strong>$0.01 USDC</strong></td>
+<td>Arm a strategy (SOL → lamports; stop-loss required).</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/snipe</code></td>
+<td><strong>$0.05 USDC</strong></td>
+<td>Force a snipe on <code>{ mint, symbol?, agentId? }</code>.</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/strategies/:id/disarm</code></td>
+<td><strong>$0.005 USDC</strong></td>
+<td>Disable a strategy.</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/positions/:id/close</code></td>
+<td><strong>$0.005 USDC</strong></td>
+<td>Schedule an exit; the next sweep sells it.</td>
+</tr>
+</tbody></table>
+<p>Prices are the defaults (USDC atomic units, 6 decimals); override via
+<code>deps.prices = { arm, snipe, disarm, close }</code>.</p>
+<p>Gating turns on when a merchant wallet is configured — <code>deps.payTo.solana</code> or the
+<code>X402_PAY_TO_SOLANA</code> env (a Base lane is available via <code>X402_PAY_TO_BASE</code>). When
+no <code>payTo</code> is set, the mutating routes still mount but answer <code>503</code>, so the
+server boots cleanly for local/dev without payment config.</p>
+<p>The Solana lane also needs a facilitator sponsor fee-payer — set
+<code>X402_FEE_PAYER_SOLANA</code> (or <code>deps.feePayer</code>). Without it the Solana lane
+self-disables (falling back to the Base lane, or the <code>503</code> guard if that&#39;s the
+only lane) rather than failing requests, and logs a one-time warning at boot.</p>
+<pre><code class="language-js">import { serve } from &#39;@three-ws/agent-sniper/api&#39;;
+
+await serve(
+  { payTo: { solana: process.env.X402_PAY_TO_SOLANA } },
+  { port: 8787 },
+);
+</code></pre>
+<hr>
+<h2 id="web-console"><a class="anchor" href="#web-console" aria-label="Link to this section">#</a>Web console</h2>
+<p><code>serve</code> also ships a <strong>built-in operator dashboard</strong> — a single, dependency-free
+HTML file served from the same origin as the API, at <code>/</code> and <code>/console</code>. Open
+<code>http://localhost:8787</code> and you get a live control room:</p>
+<ul>
+<li><strong>Live stats</strong> — buys, sells, candidates, armed strategies, in-flight queue and
+signal count, animated as they change, with time-since-last-signal.</li>
+<li><strong>Positions table</strong> — every position with entry, current value, and colored
+P&amp;L (unrealized total in the header), plus a one-click <strong>Close</strong> that schedules
+an exit through the normal sell path.</li>
+<li><strong>Armed strategies</strong> — each policy with its stop-loss / take-profit / trailing
+tags, and a <strong>Disarm</strong> button.</li>
+<li><strong>Arm a strategy</strong> and <strong>Manual snipe</strong> forms with inline validation.</li>
+<li><strong>Live activity feed</strong> — the same engine screen events the CLI prints, streamed
+in with relative timestamps.</li>
+<li>Designed loading / empty / error states, toasts, keyboard shortcuts
+(<code>s</code> snipe, <code>n</code> new strategy, <code>r</code> refresh, <code>,</code> settings, <code>?</code> help), a
+disconnected banner, and full mobile responsiveness.</li>
+</ul>
+<p>Reads are free. The mutating controls (arm, snipe, disarm, close) are x402-paid
+for external callers — so to drive them from your own console without paying
+yourself, set an <strong>operator token</strong>:</p>
+<pre><code class="language-bash">export SNIPER_ADMIN_TOKEN=&quot;$(openssl rand -hex 24)&quot;
+agent-sniper serve --port 8787
+</code></pre>
+<p>Open Settings (⚙ or <code>,</code>) in the console and paste the same token. It is sent as
+<code>X-Admin-Token</code> (or <code>Authorization: Bearer …</code>), stored only in your browser, and
+bypasses the x402 gate — while unauthenticated external agents still pay. Pass it
+programmatically as <code>deps.adminToken</code>. Without a token set, the console is a
+full-featured <strong>read-only monitor</strong> and mutations return <code>503</code> with guidance.</p>
+<hr>
+<h2 id="multi-agent-multi-user"><a class="anchor" href="#multi-agent-multi-user" aria-label="Link to this section">#</a>Multi-agent / multi-user</h2>
+<p>The engine is multi-tenant by design. The unit of isolation is the <code>agentId</code>:</p>
+<ul>
+<li><strong>One wallet per agent.</strong> The <code>Wallet</code> adapter resolves a signing <code>Keypair</code>
+per <code>agentId</code>. Self-custody reads it (in order) from a <code>secrets</code> map,
+<code>SNIPER_WALLET_&lt;AGENTID&gt;</code> env, a keystore directory of <code>&lt;agentId&gt;.json</code> files,
+or a single default <code>SOLANA_SECRET_KEY</code>. If an agent has no provisioned
+wallet, <code>loadKeypair</code> returns <code>null</code> and the engine fails the trade cleanly —
+it never auto-provisions an unfunded wallet.</li>
+<li><strong>Custodial for hosted deployments.</strong> <code>createCustodialWallet({ resolve })</code>
+takes a single async <code>resolve(agentId, ctx)</code> that decrypts a key from your own
+KMS/secret box on demand, with a short TTL cache so a long-lived process
+doesn&#39;t re-decrypt every trade. The cache is keyed per agent; <code>clearCache()</code>
+forces a re-resolve.</li>
+<li><strong>Per-agent caps.</strong> Each strategy carries its own <code>daily_budget_lamports</code> and
+<code>max_concurrent_positions</code>. The guards enforce them per agent, independent of
+the platform-wide buy throttle.</li>
+<li><strong>Mandatory stop-loss.</strong> <code>getArmedStrategies</code> filters out any strategy missing
+<code>stop_loss_pct</code>, so an agent can never run uncapped downside.</li>
+<li><strong>Idempotent claims prevent double-buys.</strong> Before a buy, the engine calls
+<code>Store.claimPosition</code> to atomically reserve the <code>(agent_id, mint, network)</code>
+slot. A second event for the same slot returns <code>null</code> and is skipped.</li>
+</ul>
+<hr>
+<h2 id="3d-agents"><a class="anchor" href="#3d-agents" aria-label="Link to this section">#</a>3D agents</h2>
+<p><code>@three-ws/agent-sniper/agents</code> is the presentation layer that lets a 3D AI
+agent <em>embody</em> the sniper: avatar definitions, the canonical animation clip
+library, and a desk-monitor visualization driven by the engine&#39;s <code>onScreen</code>
+hook. Wire the hook to push live activity (<code>Sniper online…</code>, <code>$SYM scored N — BUYING</code>) onto the agent&#39;s monitor so the trading loop is something you can watch,
+not just a log stream. The <code>onScreen</code> payload shape is <code>{ text, kind }</code> with
+<code>kind</code> in <code>activity | trade</code>.</p>
+<hr>
+<h2 id="adapter-reference"><a class="anchor" href="#adapter-reference" aria-label="Link to this section">#</a>Adapter reference</h2>
+<p>Implement any of these (<code>src/types.js</code> has the full JSDoc contracts) and pass it
+to <code>createSniper</code>. Defaults live under <code>src/adapters/</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Interface</th>
+<th>Default implementation</th>
+<th>Write your own when…</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Store</code></td>
+<td><code>createMemoryStore</code> · <code>createSqliteStore</code> (<code>./adapters/store/sqlite</code>)</td>
+<td>you need durable or shared multi-process state (e.g. Postgres).</td>
+</tr>
+<tr>
+<td><code>Wallet</code></td>
+<td><code>createSelfCustodyWallet</code> · <code>createCustodialWallet</code></td>
+<td>keys live in a KMS/HSM or a hosted secret store.</td>
+</tr>
+<tr>
+<td><code>Solana</code></td>
+<td><code>createPumpClient</code> (<code>./adapters/solana/pump-client</code>)</td>
+<td>you route quotes/builds through a different venue.</td>
+</tr>
+<tr>
+<td><code>Executor</code></td>
+<td><code>createWeb3Executor</code> (<code>./adapters/solana/executor-web3</code>)</td>
+<td>you broadcast through a custom relay/bundler.</td>
+</tr>
+<tr>
+<td><code>Feed</code></td>
+<td><code>createPumpPortalFeed</code> (<code>./adapters/feed/pumpportal</code>)</td>
+<td>you ingest launches from a different source.</td>
+</tr>
+</tbody></table>
+<p>The <code>Store</code> contract is the load-bearing one: <code>getArmedStrategies</code>,
+<code>countOpenPositions</code>, <code>getDailySpendLamports</code>, <code>claimPosition</code> (atomic),
+<code>updatePosition</code>, <code>getOpenPositions</code>, and optional <code>recordSpend</code>. See the
+in-memory reference at <code>src/adapters/store/memory.js</code>.</p>
+<hr>
+<h2 id="configuration"><a class="anchor" href="#configuration" aria-label="Link to this section">#</a>Configuration</h2>
+<p>All <code>SNIPER_*</code> env vars (read by <code>loadConfig</code>, <code>src/config.js</code>). Explicit
+overrides passed to <code>createSniper</code>/<code>loadConfig</code> always win. See <code>.env.example</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>SNIPER_NETWORK</code></td>
+<td><code>mainnet</code></td>
+<td><code>mainnet</code> | <code>devnet</code>.</td>
+</tr>
+<tr>
+<td><code>SNIPER_MODE</code></td>
+<td><code>simulate</code></td>
+<td><code>simulate</code> | <code>live</code>. Simulate never broadcasts.</td>
+</tr>
+<tr>
+<td><code>SOLANA_RPC_URL</code></td>
+<td>—</td>
+<td>RPC endpoint. Live mode requires this (or <code>HELIUS_API_KEY</code>).</td>
+</tr>
+<tr>
+<td><code>SNIPER_GLOBAL_KILL</code></td>
+<td><code>false</code></td>
+<td>Emergency switch — halts all buys when true.</td>
+</tr>
+<tr>
+<td><code>SNIPER_POLL_MS</code></td>
+<td><code>5000</code></td>
+<td>Position re-quote / exit cadence (floor 1000).</td>
+</tr>
+<tr>
+<td><code>SNIPER_STRATEGY_REFRESH_MS</code></td>
+<td><code>15000</code></td>
+<td>Strategy-cache refresh interval (floor 5000).</td>
+</tr>
+<tr>
+<td><code>SNIPER_MAX_GLOBAL_BUYS_PER_MIN</code></td>
+<td><code>10</code></td>
+<td>Platform-wide buy throttle; 0 disables.</td>
+</tr>
+<tr>
+<td><code>SNIPER_BUY_CONCURRENCY</code></td>
+<td><code>3</code></td>
+<td>Max concurrent in-flight snipes (floor 1).</td>
+</tr>
+<tr>
+<td><code>SNIPER_BUY_QUEUE_DEPTH</code></td>
+<td><code>50</code></td>
+<td>Queued-snipe cap before drops (floor 1).</td>
+</tr>
+<tr>
+<td><code>SNIPER_CONFIRM_TIMEOUT_MS</code></td>
+<td><code>60000</code></td>
+<td>Confirmation timeout per trade (floor 15000).</td>
+</tr>
+<tr>
+<td><code>SNIPER_FEED_WATCHDOG_MS</code></td>
+<td><code>180000</code></td>
+<td>Re-subscribe if the feed goes quiet (floor 30000).</td>
+</tr>
+<tr>
+<td><code>SNIPER_EXIT_ON_BEARISH</code></td>
+<td><code>false</code></td>
+<td>Enable the sentiment-flip exit.</td>
+</tr>
+<tr>
+<td><code>SNIPER_EXIT_BEARISH_MIN_CONFIDENCE</code></td>
+<td><code>0.7</code></td>
+<td>Min bearish confidence (0..1) to act.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="safety-guardrails"><a class="anchor" href="#safety-guardrails" aria-label="Link to this section">#</a>Safety &amp; guardrails</h2>
+<ul>
+<li><strong>Simulate by default.</strong> Every face starts in simulate mode. You opt into live
+trading explicitly.</li>
+<li><strong>Mandatory stop-loss.</strong> A strategy without <code>stop_loss_pct</code> is never armed.</li>
+<li><strong>Daily budget + concurrency caps.</strong> Per-agent <code>daily_budget_lamports</code> and
+<code>max_concurrent_positions</code> are enforced before any transaction is built
+(<code>checkDailyBudgetLamports</code>, <code>checkConcurrency</code>).</li>
+<li><strong>SOL fee headroom.</strong> <code>checkSolHeadroom</code> keeps ~0.012 SOL in the wallet so a
+snipe can&#39;t drain the account below the cost of the very next sell&#39;s fee.</li>
+<li><strong>Price-impact circuit breaker.</strong> <code>max_price_impact_pct</code> (default 10) skips a
+buy whose quote impact is too high (<code>checkPriceImpact</code>; unset ⇒ no gate).</li>
+<li><strong>Live-RPC refusal.</strong> Live mode refuses to start on a public RPC — it requires
+a real endpoint so trades aren&#39;t silently dropped to rate limits.</li>
+<li><strong>Optional firewall hook.</strong> The <code>assessSafety</code> hook runs after the quote and
+before broadcast; a <code>block</code> verdict cancels the trade.</li>
+<li><strong>Mayhem exclusion.</strong> <code>createMayhemFilter({ connection?, rpcUrl?, strictOnUnknown?, retries?, retryDelayMs? })</code>
+reads the bonding curve&#39;s <code>isMayhemMode</code> (cached per mint) and skips pump.fun
+Mayhem-mode launches. As of 0.1.4 a pre-built web3 <code>Connection</code> (for example a
+rotating multi-endpoint one) can be injected instead of a single <code>rpcUrl</code>, and
+a null read retries with backoff (default 2 retries) before resolving
+&quot;unknown&quot;, so a throttled provider can&#39;t starve a strict gate. The pure
+<code>retryWhileNull(fn, { retries, delayMs })</code> helper is exported too.</li>
+<li><strong>Global kill switch.</strong> <code>SNIPER_GLOBAL_KILL=true</code> (or <code>config.globalKill</code>)
+halts every buy across every agent immediately.</li>
+</ul>
+<hr>
+<h2 id="scaling-beyond-one-process"><a class="anchor" href="#scaling-beyond-one-process" aria-label="Link to this section">#</a>Scaling beyond one process</h2>
+<p><code>claimPosition</code> in the memory and sqlite stores is atomic <strong>within one
+process</strong> — the memory store relies on JS being single-threaded; the sqlite
+store on a single-writer transaction. Combined with the engine&#39;s bounded in-
+process buy queue, that prevents double-buying the same <code>(agent_id, mint, network)</code> slot inside a single sniper instance.</p>
+<p>Run <strong>two sniper processes against the same agent</strong> and that guarantee no longer
+holds: nothing serializes the claim across processes. To scale horizontally,
+back the <code>Store</code> with a database whose <code>claimPosition</code> is a genuinely atomic
+insert-if-absent (e.g. a unique constraint on <code>(agent_id, mint, network)</code> with
+<code>INSERT … ON CONFLICT DO NOTHING RETURNING</code>), so the reservation is decided by
+the database, not by any one process. The <code>Store</code> contract documents exactly
+this requirement.</p>
+<hr>
+<h2 id="testing"><a class="anchor" href="#testing" aria-label="Link to this section">#</a>Testing</h2>
+<p>Pure-logic and in-memory-adapter suites run with no network/RPC:</p>
+<pre><code class="language-bash">npm test            # vitest run
+</code></pre>
+<hr>
+<h2 id="license"><a class="anchor" href="#license" aria-label="Link to this section">#</a>License</h2>
+<p>Apache-2.0. See <a href="https://github.com/nirholas/solana-sniper-mcp/blob/main/LICENSE">LICENSE</a>.</p>
+</main>
+<nav class="toc" aria-label="On this page"><p>On this page</p><ul><li><a href="#why-the-adapter-architecture">Why — the adapter architecture</a></li><li><a href="#install">Install</a></li><li><a href="#quickstart-library">Quickstart (library)</a></li><li><a href="#cli-usage">CLI usage</a></li><li><a href="#mcp-server">MCP server</a></li><li><a href="#x402-paid-http-api">x402 paid HTTP API</a></li><li><a href="#web-console">Web console</a></li><li><a href="#multi-agent-multi-user">Multi-agent / multi-user</a></li><li><a href="#3d-agents">3D agents</a></li><li><a href="#adapter-reference">Adapter reference</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#safety-guardrails">Safety &amp; guardrails</a></li><li><a href="#scaling-beyond-one-process">Scaling beyond one process</a></li><li><a href="#testing">Testing</a></li><li><a href="#license">License</a></li></ul></nav>
+</div>
+<footer><div class="foot-in"><span>Apache-2.0 licensed</span><a href="https://github.com/nirholas/solana-sniper-mcp/issues">Issues</a><a href="https://github.com/nirholas/solana-sniper-mcp/blob/main/CONTRIBUTING.md">Contributing</a><a href="https://github.com/nirholas/solana-sniper-mcp/security/policy">Security</a><a href="https://three.ws">Part of three.ws</a></div></footer>
+<script>document.querySelectorAll('[data-copy]').forEach(function(b){b.addEventListener('click',function(){
+var t=b.getAttribute('data-copy');var done=function(){var o=b.textContent;b.textContent='Copied';setTimeout(function(){b.textContent=o},1400)};
+if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,function(){})}
+else{var a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();try{document.execCommand('copy');done()}catch(e){}a.remove()}})});</script>
+</body>
+</html>

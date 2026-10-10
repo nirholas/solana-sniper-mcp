@@ -1,0 +1,30 @@
+[
+  {
+    "key": "console",
+    "url": "http://localhost:8787/",
+    "caption": "I control 33 wallets. Watch me arm them and hunt pump.fun launches.",
+    "waitFor": "body",
+    "dwellMs": 12000
+  },
+  {
+    "key": "console-positions",
+    "url": "http://localhost:8787/",
+    "caption": "Open positions, live PnL — every fill is a real on-chain buy.",
+    "waitFor": "body",
+    "dwellMs": 12000
+  },
+  {
+    "key": "theater",
+    "url": "https://three.ws/theater",
+    "caption": "This is the platform my fleet trades on — the Live Trading Theater.",
+    "waitFor": "canvas, main",
+    "dwellMs": 9000
+  },
+  {
+    "key": "arena",
+    "url": "https://three.ws/play/arena",
+    "caption": "The Sniper Arena — autonomous agents, real trades, live.",
+    "waitFor": "canvas, main",
+    "dwellMs": 9000
+  }
+]

@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<meta name="robots" content="noindex" />
+<title>agent-sniper · console</title>
+<style>
+	/* ─────────────────────────────────────────────────────────────────────────
+	   agent-sniper console — a self-contained operator dashboard. No external
+	   assets: every style, script, and icon is inline so it runs offline and
+	   self-hosted, served straight from the x402 API face.
+	   ───────────────────────────────────────────────────────────────────────── */
+	:root {
+		--bg: #07090d;
+		--bg-2: #0c1017;
+		--panel: rgba(20, 26, 36, 0.72);
+		--panel-solid: #131924;
+		--stroke: rgba(255, 255, 255, 0.08);
+		--stroke-2: rgba(255, 255, 255, 0.14);
+		--text: #e8edf6;
+		--text-dim: #93a1b8;
+		--text-faint: #5e6b82;
+		--accent: #2ee6a6;
+		--accent-2: #16b985;
+		--accent-glow: rgba(46, 230, 166, 0.35);
+		--buy: #2ee6a6;
+		--sell: #ff6b8a;
+		--warn: #ffcf5c;
+		--danger: #ff5c78;
+		--info: #6ea8ff;
+		--radius: 16px;
+		--radius-sm: 11px;
+		--shadow: 0 18px 50px -22px rgba(0, 0, 0, 0.9);
+		--font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+		--mono: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+	}
+	* { box-sizing: border-box; }
+	html, body { height: 100%; }
+	body {
+		margin: 0;
+		font-family: var(--font);
+		color: var(--text);
+		background:
+			radial-gradient(1100px 620px at 84% -8%, rgba(46, 230, 166, 0.10), transparent 60%),
+			radial-gradient(900px 560px at 8% 4%, rgba(110, 168, 255, 0.08), transparent 55%),
+			var(--bg);
+		-webkit-font-smoothing: antialiased;
+		text-rendering: optimizelegibility;
+		letter-spacing: 0.1px;
+	}
+	a { color: inherit; }
+	button { font-family: inherit; }
+	.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+	.num { font-variant-numeric: tabular-nums; }
+	::selection { background: var(--accent-glow); color: #04150f; }
+
+	/* scrollbars */
+	*::-webkit-scrollbar { width: 10px; height: 10px; }
+	*::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.09); border-radius: 20px; border: 2px solid transparent; background-clip: padding-box; }
+	*::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); background-clip: padding-box; }
+
+	/* ── layout ── */
+	.wrap { max-width: 1440px; margin: 0 auto; padding: 20px clamp(14px, 3vw, 34px) 64px; }
+
+	/* ── top bar ── */
+	header.topbar {
+		position: sticky; top: 0; z-index: 40;
+		display: flex; align-items: center; gap: 16px;
+		padding: 14px clamp(14px, 3vw, 34px);
+		background: linear-gradient(180deg, rgba(7, 9, 13, 0.92), rgba(7, 9, 13, 0.62));
+		backdrop-filter: saturate(140%) blur(14px);
+		-webkit-backdrop-filter: saturate(140%) blur(14px);
+		border-bottom: 1px solid var(--stroke);
+	}
+	.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+	.logo {
+		width: 38px; height: 38px; border-radius: 11px; flex: none;
+		background: radial-gradient(120% 120% at 30% 20%, #22ffb0, #0c8f66 70%, #075c42);
+		box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 8px 22px -8px var(--accent-glow);
+		display: grid; place-items: center; position: relative;
+	}
+	.logo svg { width: 21px; height: 21px; }
+	.logo::after { /* scope reticle ring */
+		content: ""; position: absolute; inset: -4px; border-radius: 15px;
+		border: 1px solid var(--accent-glow); opacity: 0.5;
+		animation: ring 3.2s ease-in-out infinite;
+	}
+	@keyframes ring { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.12); opacity: 0; } }
+	.brand-txt { display: flex; flex-direction: column; line-height: 1.05; min-width: 0; }
+	.brand-txt b { font-size: 15px; letter-spacing: 0.2px; }
+	.brand-txt span { font-size: 11px; color: var(--text-faint); }
+
+	.badges { display: flex; align-items: center; gap: 8px; margin-left: 6px; flex-wrap: wrap; }
+	.badge {
+		display: inline-flex; align-items: center; gap: 7px;
+		padding: 6px 11px; border-radius: 999px; font-size: 12px; font-weight: 600;
+		border: 1px solid var(--stroke-2); background: rgba(255, 255, 255, 0.03); color: var(--text-dim);
+		white-space: nowrap;
+	}
+	.badge .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
+	.badge.mode-live { color: var(--danger); border-color: rgba(255, 92, 120, 0.4); background: rgba(255, 92, 120, 0.08); }
+	.badge.mode-simulate { color: var(--accent); border-color: rgba(46, 230, 166, 0.35); background: rgba(46, 230, 166, 0.07); }
+	.badge.net { color: var(--info); }
+	.badge.net.mainnet { color: var(--warn); }
+
+	.spacer { flex: 1 1 auto; }
+	.conn { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim); }
+	.conn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); transition: background 0.3s, box-shadow 0.3s; }
+	.conn.live .dot { background: var(--accent); box-shadow: 0 0 10px var(--accent-glow); animation: pulse 2s ease-in-out infinite; }
+	.conn.down .dot { background: var(--danger); box-shadow: 0 0 10px rgba(255, 92, 120, 0.5); }
+	@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+	.iconbtn {
+		display: inline-grid; place-items: center; width: 38px; height: 38px; flex: none;
+		border-radius: 11px; border: 1px solid var(--stroke-2); background: rgba(255, 255, 255, 0.03);
+		color: var(--text-dim); cursor: pointer; transition: all 0.16s ease;
+	}
+	.iconbtn:hover { color: var(--text); border-color: var(--stroke-2); background: rgba(255, 255, 255, 0.08); transform: translateY(-1px); }
+	.iconbtn:active { transform: translateY(0); }
+	.iconbtn.armed { color: var(--accent); border-color: rgba(46, 230, 166, 0.4); }
+	.iconbtn svg { width: 18px; height: 18px; }
+	:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+	/* ── disconnected banner ── */
+	.banner {
+		margin: 14px 0 0; padding: 11px 15px; border-radius: 12px;
+		border: 1px solid rgba(255, 92, 120, 0.35); background: rgba(255, 92, 120, 0.08);
+		color: #ffd7de; font-size: 13px; display: none; align-items: center; gap: 10px;
+	}
+	.banner.show { display: flex; animation: slidein 0.3s ease; }
+	@keyframes slidein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+	/* ── stat cards ── */
+	.stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 18px; }
+	.stat {
+		position: relative; overflow: hidden;
+		padding: 15px 16px; border-radius: var(--radius-sm);
+		border: 1px solid var(--stroke); background: var(--panel);
+		backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+	}
+	.stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); opacity: 0.7; }
+	.stat.s-sells::before { background: var(--sell); }
+	.stat.s-buys::before { background: var(--buy); }
+	.stat.s-queued::before { background: var(--warn); }
+	.stat.s-strategies::before { background: var(--info); }
+	.stat.s-candidates::before { background: #b78bff; }
+	.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.7px; color: var(--text-faint); font-weight: 600; }
+	.stat .v { font-size: 30px; font-weight: 700; margin-top: 6px; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
+	.stat .sub { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+	.stat .v.flash { animation: flash 0.6s ease; }
+	@keyframes flash { 0% { color: var(--accent); text-shadow: 0 0 18px var(--accent-glow); } 100% { } }
+
+	/* ── main grid ── */
+	main { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; margin-top: 16px; align-items: start; }
+	.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+	.panel {
+		border: 1px solid var(--stroke); border-radius: var(--radius); background: var(--panel);
+		backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); box-shadow: var(--shadow);
+		overflow: hidden;
+	}
+	.panel > .head {
+		display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+		border-bottom: 1px solid var(--stroke);
+	}
+	.panel > .head h2 { margin: 0; font-size: 14px; font-weight: 650; letter-spacing: 0.2px; display: flex; align-items: center; gap: 9px; }
+	.panel > .head h2 svg { width: 16px; height: 16px; color: var(--text-dim); }
+	.panel > .head .count { font-size: 11px; color: var(--text-faint); background: rgba(255, 255, 255, 0.05); padding: 2px 8px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+	.panel > .head .hspacer { flex: 1; }
+	.panel > .body { padding: 6px; }
+	.panel > .body.pad { padding: 16px; }
+
+	/* ── table ── */
+	.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+	.tbl th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-faint); font-weight: 600; padding: 8px 10px; }
+	.tbl td { padding: 11px 10px; border-top: 1px solid var(--stroke); vertical-align: middle; }
+	.tbl tr { transition: background 0.14s; }
+	.tbl tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+	.tbl td.r, .tbl th.r { text-align: right; }
+	.token { display: flex; align-items: center; gap: 10px; }
+	.token .sym { font-weight: 650; }
+	.token .addr { font-size: 11px; color: var(--text-faint); }
+	.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+	.pill .d { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+	.pill.open { color: var(--accent); background: rgba(46, 230, 166, 0.09); border-color: rgba(46, 230, 166, 0.28); }
+	.pill.opening { color: var(--warn); background: rgba(255, 207, 92, 0.09); border-color: rgba(255, 207, 92, 0.28); }
+	.pill.closing { color: var(--info); background: rgba(110, 168, 255, 0.09); border-color: rgba(110, 168, 255, 0.28); }
+	.pill.closed { color: var(--text-dim); background: rgba(255, 255, 255, 0.05); border-color: var(--stroke-2); }
+	.pill.failed { color: var(--danger); background: rgba(255, 92, 120, 0.09); border-color: rgba(255, 92, 120, 0.28); }
+	.pnl { font-weight: 650; font-variant-numeric: tabular-nums; }
+	.pnl.up { color: var(--buy); }
+	.pnl.down { color: var(--sell); }
+	.pnl.flat { color: var(--text-dim); }
+
+	.rowbtn {
+		border: 1px solid var(--stroke-2); background: rgba(255, 255, 255, 0.03); color: var(--text-dim);
+		font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 8px; cursor: pointer; transition: all 0.15s;
+	}
+	.rowbtn:hover { color: var(--danger); border-color: rgba(255, 92, 120, 0.4); background: rgba(255, 92, 120, 0.08); }
+	.rowbtn:disabled { opacity: 0.4; cursor: default; }
+
+	/* strategy card */
+	.strat { padding: 13px 14px; border-radius: var(--radius-sm); border: 1px solid var(--stroke); margin: 8px; background: rgba(255, 255, 255, 0.015); transition: border-color 0.15s, transform 0.15s; }
+	.strat:hover { border-color: var(--stroke-2); }
+	.strat .top { display: flex; align-items: center; gap: 10px; }
+	.strat .top .id { font-weight: 650; font-size: 13.5px; }
+	.strat .top .agent { font-size: 11px; color: var(--text-faint); }
+	.strat .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 9px 14px; margin-top: 11px; }
+	.strat .grid .kv { display: flex; flex-direction: column; gap: 2px; }
+	.strat .grid .kv .k { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-faint); }
+	.strat .grid .kv .val { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+	.tag { font-size: 10.5px; padding: 2px 8px; border-radius: 6px; background: rgba(110, 168, 255, 0.1); color: var(--info); font-weight: 600; }
+	.tag.sl { background: rgba(255, 92, 120, 0.1); color: var(--sell); }
+	.tag.tp { background: rgba(46, 230, 166, 0.1); color: var(--buy); }
+
+	/* ── forms ── */
+	.form { display: flex; flex-direction: column; gap: 12px; }
+	.field { display: flex; flex-direction: column; gap: 6px; }
+	.field label { font-size: 11.5px; color: var(--text-dim); font-weight: 600; display: flex; align-items: center; gap: 6px; }
+	.field label .req { color: var(--accent); }
+	.field .hint { font-size: 10.5px; color: var(--text-faint); font-weight: 400; }
+	.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+	.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+	input, select {
+		width: 100%; padding: 10px 12px; border-radius: 10px; font-size: 13.5px; font-family: inherit;
+		background: rgba(0, 0, 0, 0.28); border: 1px solid var(--stroke-2); color: var(--text);
+		transition: border-color 0.15s, box-shadow 0.15s, background 0.15s; font-variant-numeric: tabular-nums;
+	}
+	input::placeholder { color: var(--text-faint); }
+	input:focus, select:focus { outline: none; border-color: var(--accent-2); box-shadow: 0 0 0 3px rgba(46, 230, 166, 0.14); background: rgba(0, 0, 0, 0.4); }
+	select { appearance: none; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2393a1b8' stroke-width='2.5'><path d='M6 9l6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 34px; }
+
+	.btn {
+		display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+		padding: 11px 16px; border-radius: 11px; font-size: 13.5px; font-weight: 650; cursor: pointer;
+		border: 1px solid transparent; transition: transform 0.12s, box-shadow 0.15s, filter 0.15s, background 0.15s; width: 100%;
+	}
+	.btn svg { width: 16px; height: 16px; }
+	.btn.primary { background: linear-gradient(180deg, #34f0af, var(--accent-2)); color: #032015; box-shadow: 0 10px 26px -12px var(--accent-glow); }
+	.btn.primary:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 14px 30px -12px var(--accent-glow); }
+	.btn.primary:active { transform: translateY(0); }
+	.btn.danger { background: linear-gradient(180deg, #ff728e, #ec4b6c); color: #2a0009; }
+	.btn.ghost { background: rgba(255, 255, 255, 0.04); border-color: var(--stroke-2); color: var(--text); }
+	.btn.ghost:hover { background: rgba(255, 255, 255, 0.09); }
+	.btn:disabled { opacity: 0.55; cursor: default; transform: none !important; filter: none !important; }
+	.btn .spin { width: 15px; height: 15px; border: 2px solid rgba(0,0,0,0.25); border-top-color: currentColor; border-radius: 50%; animation: spin 0.7s linear infinite; }
+	@keyframes spin { to { transform: rotate(360deg); } }
+
+	/* ── activity ── */
+	.feed { max-height: 420px; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+	.evt { display: flex; align-items: flex-start; gap: 11px; padding: 9px 11px; border-radius: 10px; font-size: 13px; transition: background 0.14s; }
+	.evt:hover { background: rgba(255, 255, 255, 0.03); }
+	.evt .ic { width: 24px; height: 24px; border-radius: 7px; flex: none; display: grid; place-items: center; margin-top: 1px; }
+	.evt .ic svg { width: 13px; height: 13px; }
+	.evt.trade .ic { background: rgba(46, 230, 166, 0.12); color: var(--buy); }
+	.evt.alert .ic { background: rgba(255, 92, 120, 0.12); color: var(--danger); }
+	.evt.activity .ic { background: rgba(110, 168, 255, 0.12); color: var(--info); }
+	.evt.info .ic { background: rgba(255, 255, 255, 0.06); color: var(--text-dim); }
+	.evt .txt { flex: 1; min-width: 0; line-height: 1.35; word-break: break-word; }
+	.evt .t { font-size: 10.5px; color: var(--text-faint); white-space: nowrap; margin-top: 2px; font-variant-numeric: tabular-nums; }
+	.evt.new { animation: evtin 0.4s ease; }
+	@keyframes evtin { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; transform: none; } }
+
+	/* ── empty / skeleton ── */
+	.empty { padding: 34px 20px; text-align: center; color: var(--text-faint); }
+	.empty svg { width: 34px; height: 34px; opacity: 0.5; margin-bottom: 10px; }
+	.empty b { display: block; color: var(--text-dim); font-size: 13.5px; margin-bottom: 4px; font-weight: 600; }
+	.empty span { font-size: 12.5px; }
+	.skel { height: 44px; margin: 8px; border-radius: 10px; background: linear-gradient(100deg, rgba(255,255,255,0.03) 30%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 70%); background-size: 200% 100%; animation: sheen 1.4s infinite; }
+	@keyframes sheen { to { background-position: -200% 0; } }
+
+	/* ── toasts ── */
+	.toasts { position: fixed; right: 18px; bottom: 18px; z-index: 90; display: flex; flex-direction: column; gap: 10px; max-width: min(92vw, 380px); }
+	.toast {
+		display: flex; align-items: flex-start; gap: 11px; padding: 13px 15px; border-radius: 12px;
+		background: var(--panel-solid); border: 1px solid var(--stroke-2); box-shadow: var(--shadow);
+		font-size: 13px; animation: toastin 0.28s cubic-bezier(0.2, 0.9, 0.3, 1); color: var(--text);
+	}
+	.toast.out { animation: toastout 0.25s ease forwards; }
+	@keyframes toastin { from { opacity: 0; transform: translateX(16px) scale(0.98); } to { opacity: 1; transform: none; } }
+	@keyframes toastout { to { opacity: 0; transform: translateX(16px); } }
+	.toast .ic { width: 20px; height: 20px; flex: none; margin-top: 1px; }
+	.toast.ok .ic { color: var(--accent); }
+	.toast.err .ic { color: var(--danger); }
+	.toast.info .ic { color: var(--info); }
+	.toast .body b { display: block; margin-bottom: 2px; }
+	.toast .body span { color: var(--text-dim); }
+
+	/* ── drawer / modal ── */
+	.scrim { position: fixed; inset: 0; background: rgba(3, 5, 8, 0.6); backdrop-filter: blur(3px); z-index: 60; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+	.scrim.show { opacity: 1; pointer-events: auto; }
+	.drawer {
+		position: fixed; top: 0; right: 0; bottom: 0; width: min(420px, 94vw); z-index: 70;
+		background: var(--bg-2); border-left: 1px solid var(--stroke-2); box-shadow: -30px 0 60px -30px rgba(0,0,0,0.8);
+		transform: translateX(100%); transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+		display: flex; flex-direction: column; padding: 22px; gap: 18px; overflow-y: auto;
+	}
+	.drawer.show { transform: none; }
+	.drawer h3 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 9px; }
+	.drawer p { margin: 0; font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+	.drawer .close { position: absolute; top: 16px; right: 16px; }
+	.kbd { font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 6px; border: 1px solid var(--stroke-2); background: rgba(255,255,255,0.04); color: var(--text-dim); }
+	.shortcut-row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--stroke); font-size: 13px; }
+	.authstate { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; padding: 5px 10px; border-radius: 8px; }
+	.authstate.on { color: var(--accent); background: rgba(46, 230, 166, 0.08); }
+	.authstate.off { color: var(--text-faint); background: rgba(255, 255, 255, 0.04); }
+
+	/* ── responsive ── */
+	@media (max-width: 1080px) {
+		.stats { grid-template-columns: repeat(3, 1fr); }
+		main { grid-template-columns: 1fr; }
+	}
+	@media (max-width: 620px) {
+		.stats { grid-template-columns: repeat(2, 1fr); }
+		.brand-txt span { display: none; }
+		.grid2, .grid3 { grid-template-columns: 1fr; }
+		.badges .badge.net { display: none; }
+		.wrap { padding-bottom: 40px; }
+	}
+	@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+	<div class="brand">
+		<div class="logo" aria-hidden="true">
+			<svg viewBox="0 0 24 24" fill="none" stroke="#04150f" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="7.5"/><path d="M12 1.5v4M12 18.5v4M22.5 12h-4M5.5 12h-4"/><circle cx="12" cy="12" r="1.6" fill="#04150f" stroke="none"/></svg>
+		</div>
+		<div class="brand-txt">
+			<b>agent-sniper</b>
+			<span>operator console</span>
+		</div>
+	</div>
+	<div class="badges" id="badges"></div>
+	<div class="spacer"></div>
+	<div class="conn" id="conn" title="Connection status"><span class="dot"></span><span id="conn-txt">connecting…</span></div>
+	<button class="iconbtn" id="btn-shortcuts" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg>
+	</button>
+	<button class="iconbtn" id="btn-settings" title="Operator settings (,)" aria-label="Settings">
+		<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+	</button>
+</header>
+
+<div class="wrap">
+	<div class="banner" id="banner">
+		<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
+		<span id="banner-txt">Can't reach the sniper API — retrying…</span>
+	</div>
+
+	<section class="stats" id="stats"></section>
+
+	<main>
+		<div class="col">
+			<!-- POSITIONS -->
+			<div class="panel">
+				<div class="head">
+					<h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg> Positions</h2>
+					<span class="count" id="pos-count">—</span>
+					<div class="hspacer"></div>
+					<span class="mono" id="pnl-total" style="font-size:12px;color:var(--text-dim)"></span>
+				</div>
+				<div class="body" id="pos-body"></div>
+			</div>
+
+			<!-- STRATEGIES -->
+			<div class="panel">
+				<div class="head">
+					<h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg> Armed strategies</h2>
+					<span class="count" id="strat-count">—</span>
+				</div>
+				<div class="body" id="strat-body"></div>
+			</div>
+		</div>
+
+		<div class="col">
+			<!-- SNIPE -->
+			<div class="panel">
+				<div class="head"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v3M12 18v3M21 12h-3M6 12H3"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg> Manual snipe</h2></div>
+				<div class="body pad">
+					<form class="form" id="snipe-form" autocomplete="off">
+						<div class="field">
+							<label for="snipe-mint">Mint address <span class="req">*</span></label>
+							<input id="snipe-mint" name="mint" placeholder="Pump.fun token mint…" required />
+						</div>
+						<div class="field">
+							<label for="snipe-symbol">Ticker <span class="hint">optional · for the feed</span></label>
+							<input id="snipe-symbol" name="symbol" placeholder="e.g. WIF" />
+						</div>
+						<button class="btn primary" type="submit" id="snipe-btn">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+							Fire snipe
+						</button>
+						<p style="margin:0;font-size:11.5px;color:var(--text-faint);text-align:center">Forces a buy across every armed agent · simulate mode moves no funds</p>
+					</form>
+				</div>
+			</div>
+
+			<!-- ARM STRATEGY -->
+			<div class="panel">
+				<div class="head"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg> Arm a strategy</h2></div>
+				<div class="body pad">
+					<form class="form" id="arm-form" autocomplete="off">
+						<div class="grid2">
+							<div class="field">
+								<label for="arm-agent">Agent ID <span class="req">*</span></label>
+								<input id="arm-agent" name="agent_id" placeholder="scout" required />
+							</div>
+							<div class="field">
+								<label for="arm-trigger">Trigger</label>
+								<select id="arm-trigger" name="trigger">
+									<option value="new_mint">New mint</option>
+									<option value="intel_confirmed">Intel confirmed</option>
+									<option value="first_claim">First claim</option>
+									<option value="manual">Manual only</option>
+								</select>
+							</div>
+						</div>
+						<div class="grid2">
+							<div class="field">
+								<label for="arm-pertrade">Per-trade (SOL) <span class="req">*</span></label>
+								<input id="arm-pertrade" name="per_trade_sol" type="number" step="0.001" min="0" value="0.05" required />
+							</div>
+							<div class="field">
+								<label for="arm-budget">Daily budget (SOL) <span class="req">*</span></label>
+								<input id="arm-budget" name="daily_budget_sol" type="number" step="0.01" min="0" value="1" required />
+							</div>
+						</div>
+						<div class="grid3">
+							<div class="field">
+								<label for="arm-sl">Stop-loss % <span class="req">*</span></label>
+								<input id="arm-sl" name="stop_loss_pct" type="number" step="1" min="1" value="35" required />
+							</div>
+							<div class="field">
+								<label for="arm-tp">Take-profit %</label>
+								<input id="arm-tp" name="take_profit_pct" type="number" step="1" min="0" value="80" />
+							</div>
+							<div class="field">
+								<label for="arm-trail">Trailing %</label>
+								<input id="arm-trail" name="trailing_stop_pct" type="number" step="1" min="0" value="20" />
+							</div>
+						</div>
+						<div class="grid3">
+							<div class="field">
+								<label for="arm-slip">Slippage bps</label>
+								<input id="arm-slip" name="slippage_bps" type="number" step="1" min="0" value="500" />
+							</div>
+							<div class="field">
+								<label for="arm-hold">Max hold (s)</label>
+								<input id="arm-hold" name="max_hold_seconds" type="number" step="1" min="1" value="1800" />
+							</div>
+							<div class="field">
+								<label for="arm-net">Network</label>
+								<select id="arm-net" name="network">
+									<option value="mainnet">Mainnet</option>
+									<option value="devnet">Devnet</option>
+								</select>
+							</div>
+						</div>
+						<button class="btn primary" type="submit" id="arm-btn">
+							<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
+							Arm strategy
+						</button>
+					</form>
+				</div>
+			</div>
+
+			<!-- ACTIVITY -->
+			<div class="panel">
+				<div class="head">
+					<h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Live activity</h2>
+					<div class="hspacer"></div>
+					<span class="count" id="act-count">0</span>
+				</div>
+				<div class="feed" id="feed"></div>
+			</div>
+		</div>
+	</main>
+</div>
+
+<!-- settings drawer -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+	<button class="iconbtn close" id="drawer-close" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+	<div id="drawer-content"></div>
+</aside>
+
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(() => {
+	"use strict";
+	const LAMPORTS = 1e9;
+	const POLL_MS = 2200;
+	const TOKEN_KEY = "agent-sniper.admin-token";
+	const $ = (s, r = document) => r.querySelector(s);
+	const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
+	const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[m]));
+	const short = (a) => !a ? "" : a.length <= 12 ? a : a.slice(0, 4) + "…" + a.slice(-4);
+	const nfmt = (n) => new Intl.NumberFormat("en-US").format(n);
+	const sol = (lam) => { const v = Number(lam || 0) / LAMPORTS; return v === 0 ? "0" : v < 0.001 ? v.toExponential(1) : v.toFixed(v < 1 ? 4 : 3); };
+	const ago = (ts) => { if (!ts) return ""; const s = Math.max(0, (Date.now() - ts) / 1000); if (s < 60) return Math.floor(s) + "s"; if (s < 3600) return Math.floor(s / 60) + "m"; if (s < 86400) return Math.floor(s / 3600) + "h"; return Math.floor(s / 86400) + "d"; };
+
+	const state = { token: localStorage.getItem(TOKEN_KEY) || "", caps: { paid: false, adminAuth: false, prices: {} }, config: {}, stats: {}, positions: [], strategies: [], activity: [], connected: null, lastActLen: 0, prevStats: {} };
+
+	// ── networking ──────────────────────────────────────────────────────────
+	async function api(path, opts = {}) {
+		const headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+		if (state.token) headers["X-Admin-Token"] = state.token;
+		const res = await fetch(path, Object.assign({}, opts, { headers }));
+		let data = null;
+		try { data = await res.json(); } catch { /* non-JSON */ }
+		if (!res.ok) { const e = new Error((data && data.error) || ("HTTP " + res.status)); e.status = res.status; e.data = data; throw e; }
+		return data;
+	}
+
+	// ── toasts ──────────────────────────────────────────────────────────────
+	const ICONS = {
+		ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>',
+		err: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>',
+		info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>',
+	};
+	function toast(type, title, msg, ms = 4600) {
+		const t = el("div", "toast " + type);
+		t.innerHTML = '<div class="ic">' + (ICONS[type] || ICONS.info) + '</div><div class="body"><b>' + esc(title) + '</b>' + (msg ? '<span>' + esc(msg) + '</span>' : '') + '</div>';
+		$("#toasts").appendChild(t);
+		const kill = () => { t.classList.add("out"); setTimeout(() => t.remove(), 260); };
+		t.addEventListener("click", kill);
+		setTimeout(kill, ms);
+	}
+
+	// ── stat cards ──────────────────────────────────────────────────────────
+	const STAT_DEFS = [
+		{ k: "buys", label: "Buys", cls: "s-buys" },
+		{ k: "sells", label: "Sells", cls: "s-sells" },
+		{ k: "candidates", label: "Candidates", cls: "s-candidates" },
+		{ k: "strategies", label: "Armed", cls: "s-strategies" },
+		{ k: "queued", label: "In flight", cls: "s-queued" },
+		{ k: "events", label: "Signals", cls: "s-events" },
+	];
+	function buildStats() {
+		const wrap = $("#stats"); wrap.innerHTML = "";
+		for (const d of STAT_DEFS) {
+			const c = el("div", "stat " + d.cls);
+			c.innerHTML = '<div class="k">' + d.label + '</div><div class="v" id="stat-' + d.k + '">0</div><div class="sub" id="statsub-' + d.k + '">&nbsp;</div>';
+			wrap.appendChild(c);
+		}
+	}
+	function tween(elm, from, to) {
+		if (from === to) { elm.textContent = nfmt(to); return; }
+		elm.classList.remove("flash"); void elm.offsetWidth; elm.classList.add("flash");
+		const dur = 480, t0 = performance.now();
+		const step = (t) => { const p = Math.min(1, (t - t0) / dur); const e = 1 - Math.pow(1 - p, 3); elm.textContent = nfmt(Math.round(from + (to - from) * e)); if (p < 1) requestAnimationFrame(step); };
+		requestAnimationFrame(step);
+	}
+	function renderStats() {
+		const s = state.stats || {};
+		for (const d of STAT_DEFS) {
+			const cur = Number(s[d.k] || 0), prev = Number(state.prevStats[d.k] || 0);
+			const elm = $("#stat-" + d.k); if (elm) tween(elm, prev, cur);
+		}
+		const sub = $("#statsub-events"); if (sub) sub.textContent = s.lastEventAt ? "last " + ago(s.lastEventAt) + " ago" : "—";
+		const qsub = $("#statsub-queued"); if (qsub) qsub.textContent = (s.errors ? nfmt(s.errors) + " errors" : " ");
+		state.prevStats = Object.assign({}, s);
+	}
+
+	// ── badges + connection ───────────────────────────────────────────────────
+	function renderBadges() {
+		const c = state.config || {}, b = $("#badges"); if (!c.mode) { b.innerHTML = ""; return; }
+		const live = c.mode === "live";
+		b.innerHTML =
+			'<span class="badge mode-' + esc(c.mode) + '"><span class="dot"></span>' + (live ? "LIVE" : "SIMULATE") + '</span>' +
+			'<span class="badge net ' + esc(c.network || "") + '">' + esc(c.network || "?") + '</span>' +
+			(state.caps.adminAuth ? '<span class="badge" style="color:var(--accent)" title="Operator auth available"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="margin-right:-2px"><path d="M12 2 4 5v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V5l-8-3z"/></svg>secured</span>' : '');
+	}
+	function setConn(up) {
+		if (state.connected === up) return; state.connected = up;
+		const c = $("#conn"); c.classList.toggle("live", up); c.classList.toggle("down", !up);
+		$("#conn-txt").textContent = up ? "live" : "offline";
+		$("#banner").classList.toggle("show", !up);
+	}
+
+	// ── positions ─────────────────────────────────────────────────────────────
+	const PILL_STATE = { open: "open", opening: "opening", closing: "closing", closed: "closed", failed: "failed" };
+	function pnlOf(p) {
+		const entry = Number(p.entry_quote_lamports || 0);
+		if (p.status === "closed" && p.realized_pnl_pct != null) return { pct: Number(p.realized_pnl_pct), lam: Number(p.realized_pnl_lamports || 0), realized: true };
+		const val = Number(p.last_value_lamports != null ? p.last_value_lamports : p.peak_value_lamports || entry);
+		if (!entry) return { pct: 0, lam: 0, realized: false };
+		return { pct: ((val - entry) / entry) * 100, lam: val - entry, realized: false };
+	}
+	function renderPositions() {
+		const body = $("#pos-body"), list = state.positions || [];
+		$("#pos-count").textContent = list.length ? nfmt(list.length) : "—";
+		// total unrealized P&L on open positions
+		let totLam = 0, anyOpen = false;
+		for (const p of list) { if (p.status === "open" || p.status === "opening") { anyOpen = true; totLam += pnlOf(p).lam; } }
+		const pt = $("#pnl-total");
+		pt.innerHTML = anyOpen ? ('unrealized <b class="pnl ' + (totLam >= 0 ? "up" : "down") + '">' + (totLam >= 0 ? "+" : "") + sol(totLam) + " SOL</b>") : "";
+		if (!list.length) {
+			body.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg><b>No positions yet</b><span>Arm a strategy or fire a manual snipe to open your first position.</span></div>';
+			return;
+		}
+		const rows = list.slice().sort((a, b) => (b.opened_at || 0) - (a.opened_at || 0)).map((p) => {
+			const sym = esc((p.symbol || (p.mint || "").slice(0, 6)).toUpperCase());
+			const st = PILL_STATE[p.status] || "closed";
+			const pnl = pnlOf(p);
+			const dir = pnl.pct > 0.05 ? "up" : pnl.pct < -0.05 ? "down" : "flat";
+			const terminal = p.status === "closed" || p.status === "failed";
+			const entrySol = sol(p.entry_quote_lamports);
+			const valSol = sol(p.last_value_lamports != null ? p.last_value_lamports : p.peak_value_lamports || p.entry_quote_lamports);
+			return '<tr>' +
+				'<td><div class="token"><div><div class="sym">$' + sym + '</div><div class="addr mono">' + esc(short(p.mint)) + '</div></div></div></td>' +
+				'<td><span class="pill ' + st + '"><span class="d"></span>' + esc(p.status || "?") + '</span>' + (p.exit_reason ? '<div class="addr" style="margin-top:3px">' + esc(p.exit_reason) + '</div>' : '') + '</td>' +
+				'<td class="r mono">' + entrySol + '</td>' +
+				'<td class="r mono">' + valSol + '</td>' +
+				'<td class="r"><span class="pnl ' + dir + '">' + (pnl.pct >= 0 ? "+" : "") + pnl.pct.toFixed(1) + '%</span></td>' +
+				'<td class="r">' + (terminal ? '' : '<button class="rowbtn" data-close="' + esc(p.id) + '">Close</button>') + '</td>' +
+				'</tr>';
+		}).join("");
+		body.innerHTML = '<table class="tbl"><thead><tr><th>Token</th><th>Status</th><th class="r">Entry ◎</th><th class="r">Value ◎</th><th class="r">P&amp;L</th><th class="r"></th></tr></thead><tbody>' + rows + '</tbody></table>';
+		body.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => closePosition(b.getAttribute("data-close"), b)));
+	}
+
+	// ── strategies ────────────────────────────────────────────────────────────
+	function renderStrategies() {
+		const body = $("#strat-body"), list = state.strategies || [];
+		$("#strat-count").textContent = list.length ? nfmt(list.length) : "—";
+		if (!list.length) {
+			body.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg><b>No armed strategies</b><span>Use “Arm a strategy” to start scoring and sniping new mints.</span></div>';
+			return;
+		}
+		body.innerHTML = list.map((s) => {
+			const kv = (k, v) => '<div class="kv"><div class="k">' + k + '</div><div class="val">' + v + '</div></div>';
+			return '<div class="strat">' +
+				'<div class="top"><span class="id">' + esc(s.id) + '</span><span class="agent">· ' + esc(s.agent_id) + '</span>' +
+				'<div style="flex:1"></div><span class="tag">' + esc(s.trigger || "new_mint") + '</span>' +
+				'<button class="rowbtn" data-disarm="' + esc(s.id) + '">Disarm</button></div>' +
+				'<div class="grid">' +
+				kv("Per trade", sol(s.per_trade_lamports) + " ◎") +
+				kv("Daily", sol(s.daily_budget_lamports) + " ◎") +
+				kv("Stop-loss", '<span class="tag sl">' + esc(s.stop_loss_pct) + '%</span>') +
+				(s.take_profit_pct != null ? kv("Take-profit", '<span class="tag tp">' + esc(s.take_profit_pct) + '%</span>') : "") +
+				(s.trailing_stop_pct != null ? kv("Trailing", esc(s.trailing_stop_pct) + "%") : "") +
+				(s.slippage_bps != null ? kv("Slippage", esc(s.slippage_bps) + " bps") : "") +
+				kv("Network", esc(s.network || "mainnet")) +
+				'</div></div>';
+		}).join("");
+		body.querySelectorAll("[data-disarm]").forEach((b) => b.addEventListener("click", () => disarm(b.getAttribute("data-disarm"), b)));
+	}
+
+	// ── activity feed ───────────────────────────────────────────────────────────
+	const EVT_ICON = {
+		trade: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v4h-4"/></svg>',
+		alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+		activity: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>',
+		info: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>',
+	};
+	function renderActivity() {
+		const feed = $("#feed"), list = state.activity || [];
+		$("#act-count").textContent = nfmt(list.length);
+		if (!list.length) {
+			feed.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><b>Waiting for the first signal…</b><span>New-mint events, scores, buys and exits stream in here live.</span></div>';
+			return;
+		}
+		const fresh = list.length - state.lastActLen;
+		feed.innerHTML = list.slice().reverse().map((e, i) => {
+			const kind = EVT_ICON[e.kind] ? e.kind : "info";
+			return '<div class="evt ' + kind + (i < fresh && state.lastActLen > 0 ? " new" : "") + '"><div class="ic">' + EVT_ICON[kind] + '</div><div class="txt">' + esc(e.text) + '</div><div class="t">' + ago(e.at) + '</div></div>';
+		}).join("");
+		state.lastActLen = list.length;
+	}
+
+	// ── mutations ─────────────────────────────────────────────────────────────
+	function needsAuthMsg(e) {
+		if (e.status === 402) return ["Payment required", "This endpoint is x402-paid. Add your operator token in Settings to control it directly."];
+		if (e.status === 503) return ["Controls locked", (e.data && e.data.error) || "Set an operator token (Settings) or configure x402 to enable mutations."];
+		return null;
+	}
+	function handleMutErr(e) {
+		const na = needsAuthMsg(e);
+		if (na) { toast("err", na[0], na[1]); openDrawer("settings"); return; }
+		toast("err", "Failed", e.message || "Request failed");
+	}
+	async function withBtn(btn, label, fn) {
+		if (!btn) return fn();
+		const orig = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<span class="spin"></span>' + (label || "");
+		try { return await fn(); } finally { btn.disabled = false; btn.innerHTML = orig; }
+	}
+	async function armStrategy(form) {
+		const fd = new FormData(form), body = {};
+		for (const [k, v] of fd.entries()) { if (v === "") continue; body[k] = ["agent_id", "trigger", "network"].includes(k) ? v : Number(v); }
+		if (!body.stop_loss_pct && body.stop_loss_pct !== 0) return toast("err", "Stop-loss required", "Every strategy needs a mandatory stop-loss %.");
+		await withBtn($("#arm-btn"), "Arming…", async () => {
+			const r = await api("/strategies", { method: "POST", body: JSON.stringify(body) });
+			toast("ok", "Strategy armed", "$" + (r.strategy ? r.strategy.agent_id : body.agent_id) + " is now scoring candidates.");
+			refresh();
+		}).catch(handleMutErr);
+	}
+	async function snipe(form) {
+		const fd = new FormData(form), mint = (fd.get("mint") || "").trim();
+		if (!mint) return toast("err", "Mint required", "Paste a pump.fun token mint to snipe.");
+		const body = { mint }; const sym = (fd.get("symbol") || "").trim(); if (sym) body.symbol = sym;
+		await withBtn($("#snipe-btn"), "Firing…", async () => {
+			await api("/snipe", { method: "POST", body: JSON.stringify(body) });
+			toast("ok", "Snipe queued", short(mint) + " sent to every armed agent.");
+			form.reset(); refresh();
+		}).catch(handleMutErr);
+	}
+	async function disarm(id, btn) {
+		await withBtn(btn, "", async () => {
+			await api("/strategies/" + encodeURIComponent(id) + "/disarm", { method: "POST" });
+			toast("ok", "Disarmed", id + " will stop sniping on the next refresh.");
+			refresh();
+		}).catch(handleMutErr);
+	}
+	async function closePosition(id, btn) {
+		await withBtn(btn, "", async () => {
+			await api("/positions/" + encodeURIComponent(id) + "/close", { method: "POST" });
+			toast("ok", "Exit scheduled", "Position will sell on the next sweep.");
+			refresh();
+		}).catch(handleMutErr);
+	}
+
+	// ── settings / shortcuts drawer ─────────────────────────────────────────────
+	function openDrawer(which) {
+		const content = $("#drawer-content");
+		if (which === "shortcuts") {
+			content.innerHTML =
+				'<h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></svg> Keyboard shortcuts</h3>' +
+				[["s", "Focus manual snipe"], ["n", "Focus new strategy"], ["r", "Refresh now"], [",", "Open settings"], ["?", "This help"], ["Esc", "Close panels"]]
+					.map(([k, d]) => '<div class="shortcut-row"><span>' + d + '</span><span class="kbd">' + k + '</span></div>').join("");
+		} else {
+			const authed = !!state.token;
+			content.innerHTML =
+				'<h3><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V5l-8-3z"/></svg> Operator settings</h3>' +
+				'<p>Reads are always free. The mutating controls (arm, snipe, disarm, close) are x402-paid for external agents. Paste your <b>operator token</b> to control this sniper directly without paying — it is sent as <span class="kbd">X-Admin-Token</span> and stored only in this browser.</p>' +
+				'<div class="field"><label for="tok">Operator token</label><input id="tok" type="password" placeholder="SNIPER_ADMIN_TOKEN…" value="' + esc(state.token) + '" /></div>' +
+				'<div style="display:flex;gap:10px"><button class="btn primary" id="tok-save" style="flex:1">Save token</button><button class="btn ghost" id="tok-clear" style="flex:0 0 auto">Clear</button></div>' +
+				'<div style="margin-top:4px"><span class="authstate ' + (authed ? "on" : "off") + '" id="authstate">' + (authed ? "Operator token set" : "No token — mutations use x402") + '</span></div>' +
+				'<p style="margin-top:8px;font-size:11.5px;color:var(--text-faint)">Server capabilities · paid lane: <b>' + (state.caps.paid ? "on" : "off") + '</b> · operator auth: <b>' + (state.caps.adminAuth ? "enabled" : "off") + '</b></p>';
+			content.querySelector("#tok-save").addEventListener("click", () => {
+				const v = content.querySelector("#tok").value.trim(); state.token = v;
+				if (v) localStorage.setItem(TOKEN_KEY, v); else localStorage.removeItem(TOKEN_KEY);
+				toast("ok", "Saved", v ? "Operator token stored in this browser." : "Token cleared."); closeDrawer(); refresh();
+			});
+			content.querySelector("#tok-clear").addEventListener("click", () => { content.querySelector("#tok").value = ""; });
+		}
+		$("#scrim").classList.add("show"); $("#drawer").classList.add("show"); $("#drawer").setAttribute("aria-hidden", "false");
+	}
+	function closeDrawer() { $("#scrim").classList.remove("show"); $("#drawer").classList.remove("show"); $("#drawer").setAttribute("aria-hidden", "true"); }
+
+	// ── refresh loop ────────────────────────────────────────────────────────────
+	let timer = null, inflight = false;
+	async function refresh() {
+		if (inflight) return; inflight = true;
+		try {
+			const [status, positions, activity, strat] = await Promise.all([
+				api("/status"), api("/positions"), api("/activity?limit=80"), api("/strategies"),
+			]);
+			state.config = status.config || {};
+			state.stats = status.stats || {};
+			state.caps = status.capabilities || state.caps;
+			state.positions = (positions && positions.positions) || [];
+			state.strategies = (strat && strat.strategies) || [];
+			state.activity = (activity && activity.events) || [];
+			setConn(true);
+			renderBadges(); renderStats(); renderPositions(); renderStrategies(); renderActivity();
+		} catch (e) {
+			setConn(false);
+		} finally { inflight = false; }
+	}
+	function loop() { clearTimeout(timer); refresh().finally(() => { timer = setTimeout(loop, POLL_MS); }); }
+
+	// ── wire up ─────────────────────────────────────────────────────────────────
+	function init() {
+		buildStats();
+		// skeletons while first load runs
+		$("#pos-body").innerHTML = '<div class="skel"></div><div class="skel"></div><div class="skel"></div>';
+		$("#strat-body").innerHTML = '<div class="skel"></div><div class="skel"></div>';
+
+		$("#arm-form").addEventListener("submit", (e) => { e.preventDefault(); armStrategy(e.target); });
+		$("#snipe-form").addEventListener("submit", (e) => { e.preventDefault(); snipe(e.target); });
+		$("#btn-settings").addEventListener("click", () => openDrawer("settings"));
+		$("#btn-shortcuts").addEventListener("click", () => openDrawer("shortcuts"));
+		$("#drawer-close").addEventListener("click", closeDrawer);
+		$("#scrim").addEventListener("click", closeDrawer);
+
+		document.addEventListener("keydown", (e) => {
+			if (e.key === "Escape") { closeDrawer(); return; }
+			const tag = (e.target.tagName || "").toLowerCase();
+			if (tag === "input" || tag === "select" || tag === "textarea" || e.metaKey || e.ctrlKey || e.altKey) return;
+			if (e.key === "s") { e.preventDefault(); $("#snipe-mint").focus(); }
+			else if (e.key === "n") { e.preventDefault(); $("#arm-agent").focus(); }
+			else if (e.key === "r") { e.preventDefault(); refresh(); toast("info", "Refreshed", ""); }
+			else if (e.key === ",") { e.preventDefault(); openDrawer("settings"); }
+			else if (e.key === "?") { e.preventDefault(); openDrawer("shortcuts"); }
+		});
+		// keep relative times fresh even between polls
+		setInterval(() => { if (state.activity.length) renderActivity(); renderStats(); }, 1000);
+		loop();
+	}
+	document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+</body>
+</html>

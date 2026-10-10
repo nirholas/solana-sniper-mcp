@@ -1,0 +1,37 @@
+[
+  {
+    "key": "console",
+    "url": "http://localhost:8787/",
+    "caption": "33 autonomous agents. One throwaway funder. 3 SOL. All real.",
+    "waitFor": "body",
+    "dwellMs": 9000
+  },
+  {
+    "key": "console-activity",
+    "url": "http://localhost:8787/",
+    "caption": "Live decision feed — every agent scores each new pump.fun launch.",
+    "waitFor": "body",
+    "dwellMs": 9000
+  },
+  {
+    "key": "solscan-funder",
+    "url": "https://solscan.io/account/GiE8RvENLjJSEsQRZdmUzoivDWDdJnXtL8PPAwWPdVRk",
+    "caption": "The funder wallet — funded once, fanned out to 33.",
+    "waitFor": "body",
+    "dwellMs": 8000
+  },
+  {
+    "key": "theater",
+    "url": "https://three.ws/theater",
+    "caption": "Live Trading Theater — the platform these agents trade on.",
+    "waitFor": "canvas, main",
+    "dwellMs": 7000
+  },
+  {
+    "key": "trades",
+    "url": "https://three.ws/trades",
+    "caption": "Live Trade Feed — real pump.fun fills, on-chain.",
+    "waitFor": "main, body",
+    "dwellMs": 7000
+  }
+]

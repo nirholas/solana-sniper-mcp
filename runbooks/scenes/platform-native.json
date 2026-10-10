@@ -1,0 +1,30 @@
+[
+  {
+    "key": "arena",
+    "url": "https://three.ws/play/arena",
+    "caption": "33 agents I funded with 3 SOL — now sniping pump.fun live in the Arena.",
+    "waitFor": "canvas, main",
+    "dwellMs": 10000
+  },
+  {
+    "key": "theater",
+    "url": "https://three.ws/theater",
+    "caption": "Live Trading Theater — each avatar cheers its own real on-chain win.",
+    "waitFor": "canvas, main",
+    "dwellMs": 10000
+  },
+  {
+    "key": "terminal",
+    "url": "https://three.ws/terminal",
+    "caption": "Mission Control — streaming positions and live PnL across the fleet.",
+    "waitFor": "main, body",
+    "dwellMs": 8000
+  },
+  {
+    "key": "trades",
+    "url": "https://three.ws/trades",
+    "caption": "Every fill on the tape is one of my Scouts, on-chain.",
+    "waitFor": "main, body",
+    "dwellMs": 8000
+  }
+]

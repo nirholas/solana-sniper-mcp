@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: If you use this software, please cite it as below.
+title: "@three-ws/agent-sniper"
+abstract: "Lightweight, embeddable pump.fun sniper engine for 3D AI agents — multi-agent, multi-user, with pluggable wallet/store/RPC adapters. Library + CLI + MCP server + x402 paid API."
+version: 0.1.7
+license: Apache-2.0
+repository-code: "https://github.com/nirholas/solana-sniper-mcp"
+url: "https://three.ws"
+authors:
+  - name: three.ws
+    website: "https://three.ws"
