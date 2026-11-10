@@ -1,0 +1,19 @@
+{
+  "name": "agent-sniper",
+  "version": "0.1.7",
+  "description": "Arm and monitor pump.fun sniper strategies on Solana through an MCP server that simulates by default.",
+  "author": {
+    "name": "nirholas"
+  },
+  "repository": "https://github.com/nirholas/solana-sniper-mcp",
+  "homepage": "https://nirholas.github.io/solana-sniper-mcp/",
+  "license": "Apache-2.0",
+  "keywords": [
+    "solana",
+    "pumpfun",
+    "sniper",
+    "mcp",
+    "trading-bot",
+    "x402"
+  ]
+}

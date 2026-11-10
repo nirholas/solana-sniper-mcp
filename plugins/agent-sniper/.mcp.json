@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "agent-sniper": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@three-ws/agent-sniper",
+        "mcp"
+      ],
+      "env": {
+        "SNIPER_MODE": "${SNIPER_MODE:-}",
+        "SNIPER_NETWORK": "${SNIPER_NETWORK:-}",
+        "SOLANA_RPC_URL": "${SOLANA_RPC_URL:-}"
+      }
+    }
+  }
+}

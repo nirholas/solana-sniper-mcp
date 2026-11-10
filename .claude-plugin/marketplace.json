@@ -1,0 +1,21 @@
+{
+  "name": "solana-sniper-mcp",
+  "owner": {
+    "name": "nirholas"
+  },
+  "description": "Arm and monitor pump.fun sniper strategies on Solana through an MCP server that simulates by default.",
+  "plugins": [
+    {
+      "name": "agent-sniper",
+      "source": "./plugins/agent-sniper",
+      "description": "Arm and monitor pump.fun sniper strategies on Solana through an MCP server that simulates by default.",
+      "category": "finance",
+      "tags": [
+        "solana",
+        "pumpfun",
+        "mcp",
+        "trading"
+      ]
+    }
+  ]
+}
