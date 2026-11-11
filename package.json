@@ -179,6 +179,7 @@
 		"cookie@<0.7.0": "^0.7.0",
 		"bigint-buffer": "$bigint-buffer",
 		"deepmerge": "$deepmerge",
-		"elliptic": "$elliptic"
+		"elliptic": "$elliptic",
+		"node-forge": "1.4.3"
 	}
 }
