@@ -202,10 +202,14 @@ async function buildSniper(flags, { screen = false } = {}) {
 	// coins at the executeBuy chokepoint, so every face (run/serve/mcp) enforces
 	// it, not just the fleet script. On by default; --allow-mayhem disables it,
 	// --mayhem-strict also skips when the curve can't be read.
+	const solana = await createPumpClient({ network, rpcUrl });
+
 	const mayhemOn = !flags['allow-mayhem'];
 	if (mayhemOn) {
 		const { createMayhemFilter } = await import('../src/mayhem-filter.js');
-		const mayhem = createMayhemFilter({ rpcUrl, strictOnUnknown: Boolean(flags['mayhem-strict']) });
+		// Share the engine's connection so the filter reads the same cluster
+		// (devnet included) and the same RPC endpoint.
+		const mayhem = createMayhemFilter({ connection: solana.connection, strictOnUnknown: Boolean(flags['mayhem-strict']) });
 		hooks.oracleGate = mayhem.oracleGate;
 	}
 
@@ -215,7 +219,6 @@ async function buildSniper(flags, { screen = false } = {}) {
 
 	// Same wiring as presets.local, but with our store + wallet so we control
 	// persistence and key resolution.
-	const solana = await createPumpClient({ network, rpcUrl });
 	const sniper = createSniper({
 		config: { network, mode, confirmLive, rpcUrl },
 		store,

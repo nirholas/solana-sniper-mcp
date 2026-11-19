@@ -13,6 +13,12 @@
 
 import { Connection, PublicKey } from '@solana/web3.js';
 
+import { log as defaultLog } from './log.js';
+
+// Definitive answers kept per filter. The flag is immutable per mint, but the
+// firehose sees thousands of mints a day, so the oldest answers are evicted.
+const CACHE_LIMIT = 20_000;
+
 /**
  * Re-run `fn` while it resolves null, with exponential backoff. A brand-new
  * mint's curve account exists from creation, so a null read is an RPC hiccup
@@ -42,11 +48,13 @@ export async function retryWhileNull(fn, { retries = 2, delayMs = 350 } = {}) {
  *   The flag is immutable per mint, so retrying is always safe; on a strict gate each
  *   retry converts a would-be skipped buy into a definitive pass/fail.
  * @param {number} [o.retryDelayMs=350]      base backoff between attempts (doubles per retry)
+ * @param {{ warn: (msg: string, fields?: object) => void }} [o.logger]  defaults to the stderr JSON logger
+ * @param {number} [o.cacheLimit=20000]      definitive answers kept before the oldest are evicted
  * @returns {{ oracleGate: Function, isMayhem: Function, stats: Function }}
  */
-export function createMayhemFilter({ rpcUrl, connection = null, strictOnUnknown = false, retries = 2, retryDelayMs = 350 } = {}) {
+export function createMayhemFilter({ rpcUrl, connection = null, strictOnUnknown = false, retries = 2, retryDelayMs = 350, logger = defaultLog, cacheLimit = CACHE_LIMIT } = {}) {
 	const conn = connection || new Connection(rpcUrl || 'https://api.mainnet-beta.solana.com', 'confirmed');
-	const cache = new Map();      // mint → boolean (true = mayhem)
+	const cache = new Map();      // mint → boolean (true = mayhem), insertion-ordered
 	const inflight = new Map();   // mint → Promise<boolean|null>
 	let sdkPromise = null;
 	let warnedNoField = false;
@@ -72,7 +80,8 @@ export function createMayhemFilter({ rpcUrl, connection = null, strictOnUnknown 
 			const bc = await sdk.fetchBondingCurve(new PublicKey(mint));
 			if (bc && typeof bc.isMayhemMode === 'undefined' && !warnedNoField) {
 				warnedNoField = true;
-				console.log('  [mayhem] WARNING: SDK bonding curve has no isMayhemMode field — filter may be ineffective; verify the SDK version.');
+				// stderr via the logger: stdout is the JSON-RPC channel under `agent-sniper mcp`.
+				logger.warn('mayhem filter: SDK bonding curve has no isMayhemMode field; the filter may be ineffective, check the SDK version');
 			}
 			return Boolean(bc?.isMayhemMode);
 		} catch (e) {
@@ -87,7 +96,10 @@ export function createMayhemFilter({ rpcUrl, connection = null, strictOnUnknown 
 		if (inflight.has(mint)) return inflight.get(mint);
 		const p = retryWhileNull(() => readMayhem(mint), { retries, delayMs: retryDelayMs }).then((v) => {
 			inflight.delete(mint);
-			if (v !== null) cache.set(mint, v);   // only cache definitive answers
+			if (v !== null) {                       // only cache definitive answers
+				cache.set(mint, v);
+				if (cache.size > cacheLimit) cache.delete(cache.keys().next().value);
+			}
 			return v;
 		});
 		inflight.set(mint, p);
