@@ -298,15 +298,18 @@ The engine is multi-tenant by design. The unit of isolation is the `agentId`:
 
 - **One wallet per agent.** The `Wallet` adapter resolves a signing `Keypair`
   per `agentId`. Self-custody reads it (in order) from a `secrets` map,
-  `SNIPER_WALLET_<AGENTID>` env, a keystore directory of `<agentId>.json` files,
-  or a single default `SOLANA_SECRET_KEY`. If an agent has no provisioned
+  `SNIPER_WALLET_<AGENTID>` env, a keystore directory of `<agentId>.json` files
+  (only ids made of letters, digits, `.`, `_` and `-`), or a single default
+  `SOLANA_SECRET_KEY`. The default key is used for **any** agent without its own
+  key, so do not set one on a deployment where untrusted callers can name agents. If an agent has no provisioned
   wallet, `loadKeypair` returns `null` and the engine fails the trade cleanly —
   it never auto-provisions an unfunded wallet.
 - **Custodial for hosted deployments.** `createCustodialWallet({ resolve })`
   takes a single async `resolve(agentId, ctx)` that decrypts a key from your own
   KMS/secret box on demand, with a short TTL cache so a long-lived process
-  doesn't re-decrypt every trade. The cache is keyed per agent; `clearCache()`
-  forces a re-resolve.
+  doesn't re-decrypt every trade. The cache is keyed per (user, agent), so a key
+  resolved for one user is never served to another; `clearCache()` forces a
+  re-resolve.
 - **Per-agent caps.** Each strategy carries its own `daily_budget_lamports` and
   `max_concurrent_positions`. The guards enforce them per agent, independent of
   the platform-wide buy throttle.
