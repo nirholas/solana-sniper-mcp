@@ -92,6 +92,8 @@ export function createMemoryStore(seed = {}) {
 				stop_loss_pct: strategy.stop_loss_pct,
 				trailing_stop_pct: strategy.trailing_stop_pct ?? null,
 				max_hold_seconds: strategy.max_hold_seconds ?? 1800,
+				initials_out_multiple: strategy.initials_out_multiple ?? null,
+				moonbag_min_pct: strategy.moonbag_min_pct ?? null,
 				created_at_ms: Date.now(),
 			};
 			positions.set(pos.id, pos);

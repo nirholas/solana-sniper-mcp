@@ -43,6 +43,9 @@
  * @property {number} [stop_loss_pct]          MANDATORY (engine enforces non-null)
  * @property {number} [trailing_stop_pct]
  * @property {number} [max_hold_seconds]       default 1800
+ * @property {number} [initials_out_multiple]  opt-in exit ladder: at this multiple of
+ *   entry (> 1) sell enough to recover the cost basis and keep a moon bag
+ * @property {number} [moonbag_min_pct]        share of the bag the ladder always keeps, default 15
  * @property {number} [min_quality_score]      intel trigger
  * @property {number} [max_bundle_score]       intel trigger
  * @property {number} [max_concentration_top1] intel trigger
@@ -93,6 +96,10 @@
  * @property {number} [stop_loss_pct]
  * @property {number} [trailing_stop_pct]
  * @property {number} [max_hold_seconds]
+ * @property {number|null} [initials_out_multiple]   copied from the strategy at claim time
+ * @property {number|null} [moonbag_min_pct]         copied from the strategy at claim time
+ * @property {boolean} [initials_recovered]
+ * @property {string|number|bigint} [realized_pnl_lamports]
  * @property {number} [opened_at_ms]
  * @property {boolean} [kill_switch]
  * @property {string} [error]

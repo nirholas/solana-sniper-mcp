@@ -149,3 +149,17 @@ describe('createMemoryStore — listPositions', () => {
 		expect((await store.listPositions({ network: 'mainnet' })).length).toBe(0);
 	});
 });
+
+describe('createMemoryStore — exit ladder', () => {
+	it('copies initials_out_multiple and moonbag_min_pct onto the claimed position', async () => {
+		const store = createMemoryStore();
+		const pos = await store.claimPosition({
+			strategy: strategy({ initials_out_multiple: 2, moonbag_min_pct: 15 }),
+			candidate: { mint: MINT },
+			network: 'devnet',
+		});
+		expect(pos.initials_out_multiple).toBe(2);
+		expect(pos.moonbag_min_pct).toBe(15);
+		expect((await store.getPosition(pos.id)).initials_out_multiple).toBe(2);
+	});
+});

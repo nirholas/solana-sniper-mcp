@@ -304,7 +304,12 @@ export function createSqliteStore(opts = {}) {
 				opened_at_ms: null,
 				created_at_ms: Date.now(),
 				closed_at_ms: null,
-				data: null,
+				// Exit-ladder settings have no typed column; they ride in the JSON
+				// sidecar and come back as top-level fields via rowToPosition.
+				data: JSON.stringify({
+					initials_out_multiple: strategy.initials_out_multiple ?? null,
+					moonbag_min_pct: strategy.moonbag_min_pct ?? null,
+				}),
 			};
 			try {
 				db.prepare(`
