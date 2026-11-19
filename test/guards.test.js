@@ -177,3 +177,23 @@ describe('makeQueue', () => {
 		expect(onError.mock.calls[0][0].message).toBe('boom');
 	});
 });
+
+describe('maxBuyCostLamports / resolveSlippageBps', () => {
+	it('adds the slippage allowance and rounds up', async () => {
+		const { maxBuyCostLamports } = await import('../src/guards.js');
+		expect(maxBuyCostLamports(100_000_000n, 0)).toBe(100_000_000n);
+		expect(maxBuyCostLamports(100_000_000n, 500)).toBe(105_000_000n);
+		expect(maxBuyCostLamports(1n, 1)).toBe(2n); // 1.0001 rounds up
+		expect(maxBuyCostLamports('3', 10_000)).toBe(6n);
+	});
+
+	it('accepts integer bps in [0, 10000] and defaults when absent', async () => {
+		const { resolveSlippageBps } = await import('../src/guards.js');
+		expect(resolveSlippageBps(undefined)).toBe(500);
+		expect(resolveSlippageBps(null)).toBe(500);
+		expect(resolveSlippageBps(0)).toBe(0);
+		expect(resolveSlippageBps('250')).toBe(250);
+		expect(resolveSlippageBps(10_000)).toBe(10_000);
+		for (const bad of [-1, 10_001, 1.5, 'x', NaN, Infinity]) expect(resolveSlippageBps(bad)).toBe(null);
+	});
+});

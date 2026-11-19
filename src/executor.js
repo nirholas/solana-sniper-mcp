@@ -10,7 +10,7 @@ import { PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
 	checkConcurrency, checkDailyBudgetLamports, checkSolHeadroom, checkPriceImpact,
-	snipeConfidence, SOL_FEE_HEADROOM_LAMPORTS,
+	snipeConfidence, SOL_FEE_HEADROOM_LAMPORTS, DEFAULT_SLIPPAGE_BPS, resolveSlippageBps, maxBuyCostLamports,
 } from './guards.js';
 
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
@@ -51,6 +51,11 @@ export function pendingAgentLocks() {
 }
 
 const toBN = (v) => new BN(BigInt(v).toString());
+/** @param {unknown} v @returns {bigint|null} */
+const toLamports = (v) => {
+	if (v == null || v === '') return null;
+	try { return BigInt(/** @type {any} */ (v)); } catch { return null; }
+};
 const lamportsToSol = (l) => Number(BigInt(l)) / 1e9;
 const symOf = (m) => (m.symbol || m.mint.slice(0, 6)).toUpperCase();
 
@@ -78,9 +83,19 @@ const symOf = (m) => (m.symbol || m.mint.slice(0, 6)).toUpperCase();
 export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 	const { store, wallet, solana, executor, hooks, log } = ports;
 	return withAgentLock(strat.agent_id, async () => {
-		const perTrade = BigInt(strat.per_trade_lamports);
 		const tag = { agent: strat.agent_id, mint: candidate.mint, symbol: candidate.symbol };
 		const screen = (text, kind, extra) => safe(() => hooks.onScreen?.({ text, kind, ...extra }));
+
+		// Strategy amounts arrive from stores and callers; a malformed one must
+		// skip the trade, not throw out of a function documented never to throw.
+		const perTrade = toLamports(strat.per_trade_lamports);
+		const budgetLamports = toLamports(strat.daily_budget_lamports);
+		if (perTrade == null || perTrade <= 0n || budgetLamports == null) return skip(log, tag, 'invalid_strategy_amounts');
+		const slippageBps = resolveSlippageBps(strat.slippage_bps);
+		if (slippageBps == null) return skip(log, tag, 'invalid_slippage');
+		// Budget, headroom and the ledger all use the worst-case fill, so the daily
+		// budget is a real ceiling even when every buy fills at max slippage.
+		const maxCost = maxBuyCostLamports(perTrade, slippageBps);
 
 		// 0. global kill switch, checked at the chokepoint so no entry path
 		// (feed, manual snipe, a library caller) can bypass it.
@@ -96,7 +111,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 
 		// 3. daily budget cap
 		const spent = await store.getDailySpendLamports(strat.agent_id, cfg.network);
-		const budget = checkDailyBudgetLamports(spent, perTrade, BigInt(strat.daily_budget_lamports));
+		const budget = checkDailyBudgetLamports(spent, maxCost, budgetLamports);
 		if (budget) return skip(log, tag, budget.reason);
 
 		// 4. optional oracle/conviction gate
@@ -121,7 +136,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 			await store.updatePosition(posId, { wallet: address });
 
 			const balance = BigInt(await solana.connection.getBalance(keypair.publicKey, 'confirmed'));
-			const headroom = checkSolHeadroom(balance, perTrade, SOL_FEE_HEADROOM_LAMPORTS);
+			const headroom = checkSolHeadroom(balance, maxCost, SOL_FEE_HEADROOM_LAMPORTS);
 			// In simulate mode nothing is broadcast, so an unfunded wallet must not
 			// abort — otherwise the dry-run path can never be exercised without real
 			// SOL, defeating the point of simulate. Log it and continue. Live mode
@@ -132,7 +147,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 			}
 
 			const mintPk = new PublicKey(candidate.mint);
-			const slippagePct = (strat.slippage_bps ?? 500) / 100;
+			const slippagePct = slippageBps / 100;
 
 			// 7. quote + price-impact circuit breaker
 			const quote = await solana.quoteForBuy({ mint: mintPk, quoteLamports: perTrade, slippagePct });
@@ -183,7 +198,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 			screen(`Buying $${symOf(candidate)} — sending tx`, 'trade');
 			if (cfg.mode === 'live') {
 				const tipMode = ['economy', 'turbo'].includes(strat.mev_tip_mode) ? strat.mev_tip_mode : 'off';
-				const onTip = makeTipGuard({ strat, network: cfg.network, spentLamports: spent, committedLamports: perTrade, store, mint: candidate.mint });
+				const onTip = makeTipGuard({ strat, network: cfg.network, spentLamports: spent, committedLamports: maxCost, budgetLamports, store, mint: candidate.mint });
 				let result;
 				try {
 					result = await executor.submit({
@@ -192,7 +207,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 					});
 				} catch (err) {
 					if (DEFINITELY_NOT_LANDED.has(err?.code)) throw err;
-					return await holdUnknownLanding({ err, store, log, posId, tag, strat, cfg, perTrade, candidate, screen });
+					return await holdUnknownLanding({ err, store, log, posId, tag, strat, cfg, perTrade, maxCost, candidate, screen });
 				}
 				sig = result.signature;
 				exec = result;
@@ -220,7 +235,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 
 			await safeAsync(() => store.recordSpend?.({
 				agentId: strat.agent_id, userId: strat.user_id, category: 'snipe', network: cfg.network,
-				amountLamports: perTrade, signature: sig !== 'SIMULATED' ? sig : null, mint: candidate.mint,
+				amountLamports: maxCost, signature: sig !== 'SIMULATED' ? sig : null, mint: candidate.mint,
 				status: cfg.mode === 'live' ? 'confirmed' : 'ok',
 			}));
 			await safeAsync(() => hooks.recordDecision?.(buildDecision({ strat, network: cfg.network, candidate, posId, sig, mode: cfg.mode, priceImpactPct: Number(quote.priceImpactPct), firewall, perTradeLamports: perTrade })));
@@ -280,7 +295,8 @@ export async function executeSell({ cfg, position: snapshot, reason, ports, frac
 			const { keypair } = loaded;
 			const mintPk = new PublicKey(position.mint);
 			const baseAmount = sellBase;
-			const slippagePct = (position.slippage_bps ?? 500) / 100;
+			// An exit must still go out on a malformed slippage, so fall back to the default.
+			const slippagePct = (resolveSlippageBps(position.slippage_bps) ?? DEFAULT_SLIPPAGE_BPS) / 100;
 
 			const quote = await solana.quoteForSell({ mint: mintPk, baseAmount, slippagePct });
 			let expectedOut = BigInt(quote.expectedQuoteOut.toString());
@@ -354,13 +370,12 @@ export async function executeSell({ cfg, position: snapshot, reason, ports, frac
 
 // Veto hook the executor calls before appending a Jito tip. A tip is real SOL
 // leaving the wallet, so it must obey the same daily budget. Throws to veto.
-function makeTipGuard({ strat, network, spentLamports, committedLamports, store, mint }) {
+function makeTipGuard({ strat, network, spentLamports, committedLamports, budgetLamports, store, mint }) {
 	return async function onTip(tipLamports) {
 		const tip = BigInt(tipLamports);
 		if (tip <= 0n) return;
 		if (strat.kill_switch === true) throw Object.assign(new Error('strategy kill switch is on'), { code: 'spend_guard' });
-		const budget = BigInt(strat.daily_budget_lamports);
-		if (BigInt(spentLamports) + BigInt(committedLamports) + tip > budget) {
+		if (BigInt(spentLamports) + BigInt(committedLamports) + tip > budgetLamports) {
 			throw Object.assign(new Error('tip would exceed daily budget'), { code: 'spend_guard' });
 		}
 		await safeAsync(() => store.recordSpend?.({
@@ -393,7 +408,7 @@ const DEFINITELY_NOT_LANDED = new Set(['not_broadcast', 'sim_failed', 'tx_err'])
 // its slot in status 'opening' (it still counts toward max_concurrent_positions
 // and claimPosition still sees it as held), the spend is counted, and the
 // broadcast signatures are recorded so an operator can reconcile it.
-async function holdUnknownLanding({ err, store, log, posId, tag, strat, cfg, perTrade, candidate, screen }) {
+async function holdUnknownLanding({ err, store, log, posId, tag, strat, cfg, perTrade, maxCost, candidate, screen }) {
 	const signatures = Array.isArray(err?.sentSignatures) ? err.sentSignatures : [];
 	await store.updatePosition(posId, {
 		status: 'opening',
@@ -403,7 +418,7 @@ async function holdUnknownLanding({ err, store, log, posId, tag, strat, cfg, per
 	});
 	await safeAsync(() => store.recordSpend?.({
 		agentId: strat.agent_id, userId: strat.user_id, category: 'snipe', network: cfg.network,
-		amountLamports: perTrade, signature: signatures[0] ?? null, mint: candidate.mint, status: 'unconfirmed',
+		amountLamports: maxCost, signature: signatures[0] ?? null, mint: candidate.mint, status: 'unconfirmed',
 	}));
 	log.error('buy landing unknown: slot held and spend counted, reconcile before retrying', { ...tag, code: errCode(err), signatures, err: err?.message });
 	screen(`$${symOf(candidate)} buy landing unknown, holding the slot; check ${signatures[0] || 'the wallet'}`, 'activity');

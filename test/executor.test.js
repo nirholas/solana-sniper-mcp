@@ -27,6 +27,7 @@ function strategy(over = {}) {
 		max_concurrent_positions: 50,
 		stop_loss_pct: 30,
 		max_price_impact_pct: 10,
+		slippage_bps: 0, // nominal-cost fills; the slippage reservation has its own test
 		...over,
 	};
 }
@@ -341,5 +342,43 @@ describe('engine — manual snipes and shutdown', () => {
 		const positions = await store.listPositions({});
 		expect(positions.map((p) => [p.mint, p.status])).toEqual([[m1, 'open']]);
 		expect(sniper.submitCandidate({ mint: mints(1)[0] }, { force: true })).toBe(0);
+	});
+});
+
+describe('executeBuy — worst-case cost reservation', () => {
+	it('counts max slippage against the budget so the ceiling holds at worst-case fills', async () => {
+		const p = ports();
+		// 0.1 SOL per trade at 10% slippage can cost 0.11 SOL; a 0.3 SOL budget fits two.
+		const strat = strategy({ slippage_bps: 1000 });
+		const results = await Promise.all(
+			mints(4).map((mint) => executeBuy({ cfg: simCfg(), strat, candidate: { mint }, throttle: openThrottle, ports: p })),
+		);
+		expect(results.filter((r) => r.status === 'open')).toHaveLength(2);
+		expect(await p.store.getDailySpendLamports('agent_1', 'devnet')).toBe(220_000_000n);
+	});
+
+	it('requires SOL headroom for the worst-case cost in live mode', async () => {
+		const { solana } = fakeSolana({ connection: { getBalance: async () => 100_000_000 + 12_000_000 + 5_000_000 } });
+		const p = ports({ solana });
+		const cfg = loadConfig({ network: 'devnet', mode: 'live', rpcUrl: 'http://127.0.0.1:8899', confirmLive: true });
+		const res = await executeBuy({ cfg, strat: strategy({ slippage_bps: 1000, daily_budget_lamports: '1000000000' }), candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(res).toMatchObject({ status: 'failed', reason: 'insufficient_sol' });
+		expect(p.executor.submit).not.toHaveBeenCalled();
+	});
+
+	it('skips, rather than throws, on malformed strategy amounts or slippage', async () => {
+		const p = ports();
+		for (const [over, reason] of [
+			[{ per_trade_lamports: 'abc' }, 'invalid_strategy_amounts'],
+			[{ per_trade_lamports: '0' }, 'invalid_strategy_amounts'],
+			[{ daily_budget_lamports: undefined }, 'invalid_strategy_amounts'],
+			[{ slippage_bps: -1 }, 'invalid_slippage'],
+			[{ slippage_bps: 10_001 }, 'invalid_slippage'],
+			[{ slippage_bps: 2.5 }, 'invalid_slippage'],
+		]) {
+			const res = await executeBuy({ cfg: simCfg(), strat: strategy(over), candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+			expect(res).toEqual({ status: 'skip', reason });
+		}
+		expect(await p.store.listPositions({})).toHaveLength(0);
 	});
 });

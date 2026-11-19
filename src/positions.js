@@ -8,6 +8,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { decideLadderedExit } from './exit-logic.js';
 import { executeSell } from './executor.js';
+import { DEFAULT_SLIPPAGE_BPS, resolveSlippageBps } from './guards.js';
 
 async function tickPosition(cfg, pos, ports) {
 	const { solana, hooks, log } = ports;
@@ -20,7 +21,7 @@ async function tickPosition(cfg, pos, ports) {
 
 	const mintPk = new PublicKey(pos.mint);
 	const baseAmount = BigInt(pos.base_amount);
-	const slippagePct = (pos.slippage_bps ?? 500) / 100;
+	const slippagePct = (resolveSlippageBps(pos.slippage_bps) ?? DEFAULT_SLIPPAGE_BPS) / 100;
 
 	// Re-quote the bag. This number decides whether the position exits, so an
 	// unusable quote must NOT be read as a valuation. The bundled adapter throws

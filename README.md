@@ -386,9 +386,14 @@ overrides passed to `createSniper`/`loadConfig` always win. See `.env.example`.
 - **Mandatory stop-loss.** A strategy without `stop_loss_pct` is never armed.
 - **Daily budget + concurrency caps.** Per-agent `daily_budget_lamports` and
   `max_concurrent_positions` are enforced before any transaction is built
-  (`checkDailyBudgetLamports`, `checkConcurrency`).
-- **SOL fee headroom.** `checkSolHeadroom` keeps ~0.012 SOL in the wallet so a
-  snipe can't drain the account below the cost of the very next sell's fee.
+  (`checkDailyBudgetLamports`, `checkConcurrency`). A pump.fun buy is
+  exact-tokens-out with a max cost of `per_trade × (1 + slippage)`, so each buy
+  is reserved and booked at that worst case (`maxBuyCostLamports`): the budget
+  holds even if every fill hits max slippage. `slippage_bps` must be an integer
+  from 0 to 10000.
+- **SOL fee headroom.** `checkSolHeadroom` requires the worst-case buy cost plus
+  ~0.012 SOL in the wallet, so a snipe can't drain the account below the cost of
+  the very next sell's fee.
 - **Price-impact circuit breaker.** `max_price_impact_pct` (default 10) skips a
   buy whose quote impact is too high (`checkPriceImpact`; unset ⇒ no gate).
 - **Live-RPC refusal.** Live mode refuses to start on a public RPC — it requires

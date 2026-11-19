@@ -25,6 +25,7 @@ export { createMayhemFilter, retryWhileNull } from './mayhem-filter.js';
 export {
 	checkConcurrency, checkDailyBudgetLamports, checkSolHeadroom, checkPriceImpact,
 	makeThrottle, makeQueue, SOL_FEE_HEADROOM_LAMPORTS,
+	maxBuyCostLamports, resolveSlippageBps, DEFAULT_SLIPPAGE_BPS, MAX_SLIPPAGE_BPS,
 } from './guards.js';
 
 // ── adapters (defaults; swap any) ──────────────────────────────────────────────

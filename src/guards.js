@@ -8,6 +8,36 @@
 // account to a state where the very next sell can't pay its own fee. ~0.012 SOL.
 export const SOL_FEE_HEADROOM_LAMPORTS = 12_000_000n;
 
+export const DEFAULT_SLIPPAGE_BPS = 500;
+export const MAX_SLIPPAGE_BPS = 10_000;
+
+/**
+ * A strategy/position slippage in basis points, or null when it is not an
+ * integer in [0, MAX_SLIPPAGE_BPS]. Absent means the 5% default.
+ * @param {unknown} v
+ * @returns {number|null}
+ */
+export function resolveSlippageBps(v) {
+	if (v == null) return DEFAULT_SLIPPAGE_BPS;
+	const n = Number(v);
+	return Number.isInteger(n) && n >= 0 && n <= MAX_SLIPPAGE_BPS ? n : null;
+}
+
+/**
+ * The most a buy of `quoteLamports` can spend. pump.fun buys are exact-tokens-
+ * out with a max-cost cap of quote × (1 + slippage), so a fill can cost more
+ * than the nominal per-trade amount. Rounded up, so the guards never
+ * under-reserve.
+ * @param {bigint|string|number} quoteLamports
+ * @param {number} slippageBps
+ * @returns {bigint}
+ */
+export function maxBuyCostLamports(quoteLamports, slippageBps) {
+	const q = BigInt(quoteLamports);
+	const bps = BigInt(slippageBps);
+	return (q * (10_000n + bps) + 9_999n) / 10_000n;
+}
+
 /** @returns {{ reason: string }|null} */
 export function checkConcurrency(openCount, maxConcurrent) {
 	const cap = Number(maxConcurrent) || 1;
