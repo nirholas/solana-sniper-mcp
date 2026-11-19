@@ -35,8 +35,8 @@ export function decideExit(pos, value, peak, nowMs, sentiment = null) {
 	const trail = num(pos.trailing_stop_pct);
 	if (trail != null && peak > 0) {
 		const dropFromPeakPct = ((peak - value) / peak) * 100;
-		// Only arms once the position has been in profit at least the trail amount,
-		// so a coin that never moves up can't trail-stop on entry noise.
+		// Only arms once the peak has been above entry, so a coin that never moved
+		// up can't trail-stop on entry noise (the stop-loss covers that case).
 		if (peak > entry && dropFromPeakPct >= Math.abs(trail)) return 'trailing_stop';
 	}
 

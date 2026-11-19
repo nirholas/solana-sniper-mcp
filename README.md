@@ -123,13 +123,15 @@ await sniper.start();
 console.log(sniper.stats());          // { events, candidates, buys, sells, errors, strategies, queued, lastEventAt }
 console.log(sniper.strategies());     // the live armed-strategy cache
 
-// Fire a manual buy by hand (drives the same path as MCP snipe_now):
-sniper.submitCandidate(
-  { mint: 'THREEsynthetic1111111111111111111111111111111', entry_trigger: 'manual' },
+// Fire a manual buy by hand (drives the same path as MCP snipe_now). `force`
+// skips the scorer; every pre-trade guard still applies. Returns the number of
+// buys queued. Pass `agent_id` to use only that agent's strategies.
+const queued = sniper.submitCandidate(
+  { mint: '<base58 mint address>', entry_trigger: 'manual' },
   { force: true },
 );
 
-// later…
+// later: stops the feed, drops queued buys, waits up to 30 s for in-flight ones.
 await sniper.stop();
 ```
 
@@ -182,7 +184,7 @@ server is unauthenticated and meant to run locally against your own wallet/RPC.
 | `arm_strategy` | write | Register/update a strategy. SOL → lamports for you; `stop_loss_pct` mandatory. |
 | `disarm_strategy` | write | Disable a strategy (`enabled=false`); open positions still exit on their rules. |
 | `list_strategies` | read | List the armed strategy set the engine is evaluating. |
-| `snipe_now` | write | Force a manual buy of a mint across all armed agents (bypasses the scorer). |
+| `snipe_now` | write | Force a manual buy of a mint across all armed agents, or one `agentId` (bypasses the scorer; guards still apply). |
 | `list_positions` | read | List positions, filter by `agentId` and/or `status`. |
 | `close_position` | write | Schedule an exit — flips the position's kill switch; the next sweep sells it. |
 | `sniper_status` | read | Engine health: event/candidate/buy/sell counts, armed count, queue depth, network/mode. |
@@ -353,7 +355,7 @@ library, and a desk-monitor visualization driven by the engine's `onScreen`
 hook. Wire the hook to push live activity (`Sniper online…`, `$SYM scored N —
 BUYING`) onto the agent's monitor so the trading loop is something you can watch,
 not just a log stream. The `onScreen` payload shape is `{ text, kind }` with
-`kind` in `activity | trade`.
+`kind` in `activity | trade | analysis`.
 
 ---
 
@@ -372,22 +374,32 @@ to `createSniper`. Defaults live under `src/adapters/`.
 
 The `Store` contract is the load-bearing one: `getArmedStrategies`,
 `countOpenPositions`, `getDailySpendLamports`, `claimPosition` (atomic),
-`updatePosition`, `getOpenPositions`, and optional `recordSpend`. See the
-in-memory reference at `src/adapters/store/memory.js`.
+`updatePosition`, `getOpenPositions`, and optional `recordSpend` and
+`getPosition` (when present, a sell re-reads the position under the per-agent
+lock and skips one that is no longer open). See the in-memory reference at
+`src/adapters/store/memory.js`.
+
+An `Executor` must throw with `code` `not_broadcast`, `sim_failed` or `tx_err`
+only when a transaction provably did not land. Any other error is treated as
+"may have landed": the position keeps its slot (status `opening`, `error`
+starting with `landing_unknown`), the spend is counted, and the signatures are
+logged so you can reconcile it by hand.
 
 ---
 
 ## Configuration
 
 All `SNIPER_*` env vars (read by `loadConfig`, `src/config.js`). Explicit
-overrides passed to `createSniper`/`loadConfig` always win. See `.env.example`.
+overrides passed to `createSniper`/`loadConfig` always win.
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `SNIPER_NETWORK` | `mainnet` | `mainnet` \| `devnet`. |
 | `SNIPER_MODE` | `simulate` | `simulate` \| `live`. Simulate never broadcasts. |
 | `SNIPER_CONFIRM_LIVE` | — | Must be exactly `yes` (or `confirmLive: true` / `--confirm-live`) for `live` to start. |
-| `SOLANA_RPC_URL` | — | RPC endpoint. Live mode requires this (or `HELIUS_API_KEY`). |
+| `SOLANA_RPC_URL` | — | RPC endpoint. Live mode requires this (or `HELIUS_API_KEY`), and refuses to start if the endpoint is on a different cluster than `SNIPER_NETWORK`. |
+| `HELIUS_API_KEY` | — | Used when no RPC URL is set: becomes `https://<network>.helius-rpc.com/?api-key=…`. |
+| `SOLANA_RPC_URL_DEVNET` | — | Devnet endpoint for the bundled pump client when no RPC URL is passed. |
 | `SNIPER_GLOBAL_KILL` | `false` | Emergency switch — halts all buys when true. |
 | `SNIPER_POLL_MS` | `5000` | Position re-quote / exit cadence (floor 1000). |
 | `SNIPER_STRATEGY_REFRESH_MS` | `15000` | Strategy-cache refresh interval (floor 5000). |
@@ -398,6 +410,24 @@ overrides passed to `createSniper`/`loadConfig` always win. See `.env.example`.
 | `SNIPER_FEED_WATCHDOG_MS` | `180000` | Re-subscribe if the feed goes quiet (floor 30000). |
 | `SNIPER_EXIT_ON_BEARISH` | `false` | Enable the sentiment-flip exit. |
 | `SNIPER_EXIT_BEARISH_MIN_CONFIDENCE` | `0.7` | Min bearish confidence (0..1) to act. |
+| `SNIPER_MIN_MC_FLOOR_USD` / `SNIPER_MAX_MC_CEIL_USD` | — | Fleet-wide market-cap band applied on top of each strategy's own bounds. |
+| `SNIPER_STRATEGIES` | — | CLI: strategy JSON (or a path to it) when `--strategy` is not given. |
+| `SNIPER_DB_PATH` | `./agent-sniper.db` | SQLite store path. |
+| `SNIPER_DEBUG` | — | Emit debug log lines. |
+
+Wallets and the HTTP API:
+
+| Variable | Meaning |
+|----------|---------|
+| `SOLANA_SECRET_KEY` | Default self-custody key, used for **any** agent without its own key. |
+| `SNIPER_WALLET_<AGENTID>` | Per-agent secret (agent id uppercased, non-alphanumerics → `_`). |
+| `SNIPER_KEYSTORE_DIR` | Directory of `<agentId>.json` keypair files. |
+| `SNIPER_ADMIN_TOKEN` | Operator token that bypasses x402 on the HTTP API. |
+| `X402_PAY_TO_SOLANA` / `X402_PAY_TO_BASE` | Merchant wallets that enable the paid lanes. |
+| `X402_FEE_PAYER_SOLANA` | Facilitator sponsor fee-payer the Solana lane requires. |
+| `X402_FACILITATOR_URL` | Facilitator base URL for `/verify` and `/settle`. |
+| `SNIPER_API_ALLOW_PAID_LIVE` | `yes` lets paid callers arm and snipe when the engine is live. Off by default. |
+| `PORT` | HTTP port for `serve` (default 8787). |
 
 ---
 
@@ -461,6 +491,8 @@ Pure-logic and in-memory-adapter suites run with no network/RPC:
 
 ```bash
 npm test            # vitest run
+npm run lint        # eslint
+npm run typecheck   # tsc over the JSDoc types in src/ and bin/
 ```
 
 ---
