@@ -180,6 +180,7 @@
 		"bigint-buffer": "$bigint-buffer",
 		"deepmerge": "$deepmerge",
 		"elliptic": "$elliptic",
-		"node-forge": "1.4.3"
+		"node-forge": "1.4.3",
+		"zod": "$zod"
 	}
 }
