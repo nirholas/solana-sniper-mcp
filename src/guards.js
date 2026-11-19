@@ -71,10 +71,23 @@ export function makeThrottle(maxPerMin) {
  * Bounded work queue: caps concurrent jobs at `concurrency`, drops (rather than
  * unbounded-buffers) once `maxDepth` are waiting so a launch firehose can't grow
  * memory without bound. A dropped job calls `onDrop`.
+ *
+ * @param {number} concurrency
+ * @param {number} maxDepth
+ * @param {{ onError?: (err: unknown) => void, onDrop?: () => void }} [opts]
  */
 export function makeQueue(concurrency, maxDepth, { onError, onDrop } = {}) {
 	let active = 0;
+	/** @type {Array<() => unknown>} */
 	const q = [];
+	/** @type {Array<() => void>} */
+	let idleWaiters = [];
+	const settleIdle = () => {
+		if (active || q.length) return;
+		const waiters = idleWaiters;
+		idleWaiters = [];
+		for (const w of waiters) w();
+	};
 	const pump = () => {
 		while (active < concurrency && q.length) {
 			const job = q.shift();
@@ -82,15 +95,28 @@ export function makeQueue(concurrency, maxDepth, { onError, onDrop } = {}) {
 			Promise.resolve()
 				.then(job)
 				.catch((err) => onError?.(err))
-				.finally(() => { active--; pump(); });
+				.finally(() => { active--; pump(); settleIdle(); });
 		}
 	};
 	return {
+		/** @param {() => unknown} job */
 		push(job) {
 			if (q.length >= maxDepth) { onDrop?.(); return false; }
 			q.push(job);
 			pump();
 			return true;
+		},
+		/** Drop every job that has not started yet; returns how many were dropped. */
+		clear() {
+			const dropped = q.length;
+			q.length = 0;
+			settleIdle();
+			return dropped;
+		},
+		/** Resolves once no job is running or waiting. */
+		idle() {
+			if (!active && !q.length) return Promise.resolve();
+			return new Promise((resolve) => { idleWaiters.push(() => resolve(undefined)); });
 		},
 		get inFlight() { return active + q.length; },
 	};

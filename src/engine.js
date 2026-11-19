@@ -73,13 +73,24 @@ export function createSniper(deps) {
 
 	function screen(text, kind) { try { hooks.onScreen?.({ text, kind }); } catch { /* best-effort */ } }
 
-	function onEvent({ kind, data }) {
+	function enqueueBuy(strat, candidate) {
+		return queue.push(async () => {
+			const res = await executeBuy({ cfg, strat, candidate, throttle, ports });
+			if (res?.status === 'open') stats.buys++;
+		});
+	}
+
+	/** Armed strategies, optionally narrowed to one agent. */
+	const targetStrategies = (agentId) => (agentId ? strategies.filter((s) => s.agent_id === agentId) : strategies);
+
+	function onEvent({ kind, data }, targets = strategies) {
 		lastEventAt = Date.now();
 		stats.events++;
-		if (draining || cfg.globalKill || !data?.mint) return;
+		if (draining || cfg.globalKill || typeof data?.mint !== 'string' || !data.mint) return 0;
 		const sym = (data.symbol || data.mint.slice(0, 6)).toUpperCase();
+		let queued = 0;
 
-		for (const strat of strategies) {
+		for (const strat of targets) {
 			const trig = strat.trigger || 'new_mint';
 			// Route the event to strategies whose trigger matches its kind.
 			if (kind === 'mint' && trig !== 'new_mint') continue;
@@ -95,11 +106,9 @@ export function createSniper(deps) {
 			stats.candidates++;
 			log.info('candidate', { agent: strat.agent_id, mint: data.mint, symbol: data.symbol, score, reasons });
 			screen(`$${sym} scored ${score} — BUYING`, 'trade');
-			queue.push(async () => {
-				const res = await executeBuy({ cfg, strat, candidate: data, throttle, ports });
-				if (res?.status === 'open') stats.buys++;
-			});
+			if (enqueueBuy(strat, data)) queued++;
 		}
+		return queued;
 	}
 
 	// One sweep at a time. setInterval keeps firing while a slow sweep (many
@@ -114,14 +123,21 @@ export function createSniper(deps) {
 		return sweeping;
 	}
 
+	let started = false;
+
 	return {
 		config: cfg,
+		/** The Store this engine reads and writes, so faces share one source of truth. */
+		store: ports.store,
 		stats: () => ({ ...stats, strategies: strategies.length, queued: queue.inFlight, lastEventAt }),
 		strategies: () => strategies.slice(),
 		/** Most-recent screen events (newest last), for a live activity feed. */
 		activity: (limit = 50) => activity.slice(-Math.max(1, Math.min(Number(limit) || 50, ACTIVITY_CAP))),
 
+		/** Start the feed, sweep and strategy refresh. Calling it again is a no-op. */
 		async start() {
+			if (started) return this;
+			started = true;
 			log.info('boot', { network: cfg.network, mode: cfg.mode, globalKill: cfg.globalKill, pollMs: cfg.pollMs });
 			screen(`Sniper online — ${cfg.network} / ${cfg.mode} mode`, 'activity');
 			await refreshStrategies();
@@ -133,23 +149,51 @@ export function createSniper(deps) {
 			return this;
 		},
 
-		/** Score + (queue) a single candidate by hand — drives the `manual` trigger / MCP snipe_now. */
+		/**
+		 * Score + (queue) a single candidate by hand — drives the `manual` trigger /
+		 * MCP snipe_now. `candidate.agent_id` narrows it to that agent's strategies;
+		 * otherwise every armed strategy is considered. `force` skips the scorer
+		 * (every pre-trade guard in executeBuy still applies). Returns how many buys
+		 * were queued.
+		 *
+		 * @param {import('./types.js').Candidate & { agent_id?: string }} candidate
+		 * @param {{ force?: boolean }} [opts]
+		 * @returns {number}
+		 */
 		submitCandidate(candidate, { force = false } = {}) {
-			if (force) {
-				// Bypass the feed scorer: run every armed strategy's buy directly.
-				for (const strat of strategies) {
-					queue.push(() => executeBuy({ cfg, strat, candidate, throttle, ports }));
-				}
-				return;
+			if (draining || cfg.globalKill || typeof candidate?.mint !== 'string' || !candidate.mint) return 0;
+			const targets = targetStrategies(candidate.agent_id);
+			if (!force) {
+				return onEvent({ kind: candidate.entry_trigger === 'intel_confirmed' ? 'intel' : 'mint', data: candidate }, targets);
 			}
-			onEvent({ kind: candidate.entry_trigger === 'intel_confirmed' ? 'intel' : 'mint', data: candidate });
+			let queued = 0;
+			for (const strat of targets) if (enqueueBuy(strat, candidate)) queued++;
+			return queued;
 		},
 
-		async stop() {
+		/**
+		 * Stop taking new work, drop buys that have not started, and wait (up to
+		 * `timeoutMs`) for in-flight buys and the current sweep to finish, so a
+		 * shutdown never abandons a trade between broadcast and bookkeeping.
+		 *
+		 * @param {{ timeoutMs?: number }} [opts]
+		 */
+		async stop({ timeoutMs = 30_000 } = {}) {
+			if (draining) return;
 			draining = true;
 			try { stopFeed?.(); } catch { /* feed already closed */ }
 			if (sweepTimer) clearInterval(sweepTimer);
 			if (refreshTimer) clearInterval(refreshTimer);
+			const dropped = queue.clear();
+			if (dropped) log.warn('shutdown: dropped queued buys that had not started', { dropped });
+
+			let timer;
+			const timedOut = await Promise.race([
+				Promise.all([queue.idle(), sweeping || Promise.resolve()]).then(() => false),
+				new Promise((resolve) => { timer = setTimeout(() => resolve(true), timeoutMs); timer.unref?.(); }),
+			]);
+			clearTimeout(timer);
+			if (timedOut) log.warn('shutdown: timed out with work still in flight', { inFlight: queue.inFlight, sweeping: Boolean(sweeping) });
 			log.info('shutdown', stats);
 		},
 	};

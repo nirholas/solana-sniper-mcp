@@ -268,3 +268,78 @@ describe('executeBuy — quote asset and tip ledger', () => {
 		expect(tips[0].network).toBe('devnet');
 	});
 });
+
+describe('engine — manual snipes and shutdown', () => {
+	function build({ store, solana, executor, config = {} } = {}) {
+		const p = ports({ store, solana, executor });
+		let feedStarts = 0;
+		const sniper = createSniper({
+			config: { network: 'devnet', mode: 'simulate', ...config },
+			store: p.store,
+			wallet: p.wallet,
+			solana: p.solana,
+			executor: p.executor,
+			feed: { start: async () => { feedStarts++; return () => {}; } },
+			logger: silentLog,
+		});
+		return { sniper, store: p.store, feedStarts: () => feedStarts };
+	}
+
+	it('start() is idempotent and the handle exposes its store', async () => {
+		const store = createMemoryStore();
+		const { sniper, feedStarts } = build({ store });
+		await sniper.start();
+		await sniper.start();
+		expect(feedStarts()).toBe(1);
+		expect(sniper.store).toBe(store);
+		await sniper.stop();
+	});
+
+	it('submitCandidate targets only the named agent', async () => {
+		const store = createMemoryStore({
+			strategies: [strategy({ id: 's1', agent_id: 'alice' }), strategy({ id: 's2', agent_id: 'bob' })],
+		});
+		const { sniper } = build({ store });
+		await sniper.start();
+		expect(sniper.submitCandidate({ mint: THREE, agent_id: 'alice' }, { force: true })).toBe(1);
+		await sniper.stop();
+		const held = await store.listPositions({});
+		expect(held.map((p) => p.agent_id)).toEqual(['alice']);
+	});
+
+	it('a forced snipe respects the global kill switch', async () => {
+		const store = createMemoryStore({ strategies: [strategy()] });
+		const { sniper } = build({ store, config: { globalKill: true } });
+		await sniper.start();
+		expect(sniper.submitCandidate({ mint: THREE }, { force: true })).toBe(0);
+		await sniper.stop();
+		expect(await store.listPositions({})).toHaveLength(0);
+	});
+
+	it('stop() waits for an in-flight buy and drops buys that have not started', async () => {
+		let releaseQuote;
+		const quoteGate = new Promise((r) => { releaseQuote = r; });
+		const { solana } = fakeSolana({
+			quoteForBuy: async () => { await quoteGate; return { priceImpactPct: 1, quoteMint: WSOL }; },
+		});
+		const store = createMemoryStore({ strategies: [strategy({ daily_budget_lamports: '10000000000' })] });
+		const { sniper } = build({ store, solana, config: { buyConcurrency: 1 } });
+		await sniper.start();
+		const [m1, m2] = mints(2);
+		sniper.submitCandidate({ mint: m1 }, { force: true }); // starts, blocks on the quote
+		sniper.submitCandidate({ mint: m2 }, { force: true }); // queued behind it
+		await new Promise((r) => setTimeout(r, 10));
+
+		const stopping = sniper.stop({ timeoutMs: 5_000 });
+		let stopped = false;
+		stopping.then(() => { stopped = true; });
+		await new Promise((r) => setTimeout(r, 10));
+		expect(stopped).toBe(false); // still waiting on the in-flight buy
+
+		releaseQuote();
+		await stopping;
+		const positions = await store.listPositions({});
+		expect(positions.map((p) => [p.mint, p.status])).toEqual([[m1, 'open']]);
+		expect(sniper.submitCandidate({ mint: mints(1)[0] }, { force: true })).toBe(0);
+	});
+});

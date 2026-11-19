@@ -82,6 +82,10 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 		const tag = { agent: strat.agent_id, mint: candidate.mint, symbol: candidate.symbol };
 		const screen = (text, kind, extra) => safe(() => hooks.onScreen?.({ text, kind, ...extra }));
 
+		// 0. global kill switch, checked at the chokepoint so no entry path
+		// (feed, manual snipe, a library caller) can bypass it.
+		if (cfg.globalKill) return skip(log, tag, 'global_kill');
+
 		// 1. global throttle (platform-wide backstop)
 		if (!throttle.tryConsume()) return skip(log, tag, 'global_throttle');
 
