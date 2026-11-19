@@ -398,3 +398,67 @@ describe('executeBuy — price-impact default', () => {
 		expect(res.status).toBe('open');
 	});
 });
+
+describe('position sweep end to end (memory store, fake quotes)', () => {
+	async function openWith(p, over = {}) {
+		const res = await executeBuy({ cfg: simCfg(), strat: strategy(over), candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(res.status).toBe('open');
+		return res.posId;
+	}
+
+	it('persists the high-water mark across ticks and exits on the trailing stop', async () => {
+		const { runPositionSweep } = await import('../src/positions.js');
+		let value = 100_000_000n; // entry is 0.1 SOL
+		const { solana } = fakeSolana({
+			quoteForSell: async () => ({ priceImpactPct: 1, expectedQuoteOut: value, quoteMint: WSOL }),
+			buildSellInstructions: async () => ({ instructions: [], expectedQuoteOut: value }),
+		});
+		const p = ports({ solana });
+		const posId = await openWith(p, { trailing_stop_pct: 20, stop_loss_pct: 50 });
+
+		value = 150_000_000n; // +50%
+		await runPositionSweep(simCfg(), p);
+		expect((await p.store.getPosition(posId)).peak_value_lamports).toBe(150_000_000);
+
+		value = 130_000_000n; // -13% from peak: hold, peak unchanged
+		await runPositionSweep(simCfg(), p);
+		const held = await p.store.getPosition(posId);
+		expect(held.status).toBe('open');
+		expect(held.peak_value_lamports).toBe(150_000_000);
+
+		value = 119_000_000n; // -20.7% from peak: trailing stop
+		await runPositionSweep(simCfg(), p);
+		const closed = await p.store.getPosition(posId);
+		expect(closed.status).toBe('closed');
+		expect(closed.exit_reason).toBe('trailing_stop');
+		expect(closed.realized_pnl_lamports).toBe('19000000');
+	});
+
+	it('runs the take-initials ladder when the strategy sets it', async () => {
+		const { runPositionSweep } = await import('../src/positions.js');
+		let value = 100_000_000n;
+		const { solana } = fakeSolana({
+			quoteForSell: async ({ baseAmount }) => ({ priceImpactPct: 1, expectedQuoteOut: (value * baseAmount) / 1_000_000n, quoteMint: WSOL }),
+			buildSellInstructions: async ({ baseAmount }) => ({ instructions: [], expectedQuoteOut: (value * baseAmount) / 1_000_000n }),
+		});
+		const p = ports({ solana });
+		const posId = await openWith(p, { initials_out_multiple: 2, moonbag_min_pct: 15, trailing_stop_pct: 30 });
+
+		value = 200_000_000n; // 2x: sell half to recover the 0.1 SOL cost basis
+		await runPositionSweep(simCfg(), p);
+		const pos = await p.store.getPosition(posId);
+		expect(pos.status).toBe('open');
+		expect(pos.initials_recovered).toBe(true);
+		expect(BigInt(pos.base_amount)).toBe(500_000n);
+		expect(pos.realized_pnl_lamports).toBe('50000000');
+	});
+
+	it('a kill switch exits through the normal sell path', async () => {
+		const { runPositionSweep } = await import('../src/positions.js');
+		const p = ports();
+		const posId = await openWith(p);
+		await p.store.updatePosition(posId, { kill_switch: true });
+		await runPositionSweep(simCfg(), p);
+		expect(await p.store.getPosition(posId)).toMatchObject({ status: 'closed', exit_reason: 'kill_switch' });
+	});
+});
