@@ -18,7 +18,9 @@ function bool(name, def = false) {
 }
 
 /**
- * @param {Partial<ReturnType<typeof loadConfig>>} [overrides]
+ * @param {Partial<ReturnType<typeof loadConfig>> & { confirmLive?: boolean }} [overrides]
+ *   `confirmLive: true` is required, in addition to `mode: 'live'`, before the
+ *   engine will broadcast.
  */
 export function loadConfig(overrides = {}) {
 	const network = (overrides.network || process.env.SNIPER_NETWORK || 'mainnet').trim();
@@ -29,6 +31,18 @@ export function loadConfig(overrides = {}) {
 	const mode = (overrides.mode || process.env.SNIPER_MODE || 'simulate').trim();
 	if (mode !== 'live' && mode !== 'simulate') {
 		throw new Error(`[agent-sniper] mode must be live|simulate, got "${mode}"`);
+	}
+
+	// Live trading needs a second, separately named confirmation, so a stray
+	// SNIPER_MODE=live (a leftover shell export, a copied MCP config) can never
+	// turn a simulate run into one that spends. An explicit `confirmLive: false`
+	// wins over the env.
+	const confirmLive = overrides.confirmLive ?? process.env.SNIPER_CONFIRM_LIVE === 'yes';
+	if (mode === 'live' && confirmLive !== true) {
+		throw new Error(
+			'[agent-sniper] live mode trades real funds and must be confirmed separately: pass ' +
+			'confirmLive: true (CLI --confirm-live, env SNIPER_CONFIRM_LIVE=yes) alongside mode live',
+		);
 	}
 
 	// Live trading on a public RPC will 429 under the new-mint firehose. Refuse to

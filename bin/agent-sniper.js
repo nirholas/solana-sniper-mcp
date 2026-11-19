@@ -9,7 +9,7 @@
 // minimal `arm`/`help` run never touches them.
 //
 // SAFETY: the default mode is `simulate`. `live` trades REAL funds from the
-// agent wallet and must be opted into explicitly with `--mode live`.
+// agent wallet and needs both `--mode live` and `--confirm-live`.
 
 import fs from 'node:fs';
 import process from 'node:process';
@@ -162,7 +162,10 @@ async function buildSniper(flags, { screen = false } = {}) {
 	const network = flags.network || process.env.SNIPER_NETWORK || 'mainnet';
 	const mode = flags.mode || process.env.SNIPER_MODE || 'simulate';
 	if (mode !== 'simulate' && mode !== 'live') fail(`--mode must be simulate|live, got "${mode}"`);
+	const confirmLive = flags['confirm-live'] === true ? true : undefined;
 	const rpcUrl = flags.rpc || process.env.SOLANA_RPC_URL || null;
+	// Fail before any adapter is built (and before an RPC is touched).
+	loadConfig({ network, mode, rpcUrl, confirmLive });
 
 	// A single default keypair drives one-agent runs; multi-agent runs resolve
 	// per-agent secrets from SNIPER_WALLET_<AGENTID> env or the sqlite store.
@@ -213,7 +216,7 @@ async function buildSniper(flags, { screen = false } = {}) {
 	// persistence and key resolution.
 	const solana = await createPumpClient({ network, rpcUrl });
 	const sniper = createSniper({
-		config: { network, mode, rpcUrl },
+		config: { network, mode, confirmLive, rpcUrl },
 		store,
 		wallet,
 		solana,
@@ -326,6 +329,7 @@ async function cmdStatus(flags) {
 	const cfg = loadConfig({
 		network: typeof flags.network === 'string' ? flags.network : undefined,
 		mode: typeof flags.mode === 'string' ? flags.mode : undefined,
+		confirmLive: flags['confirm-live'] === true ? true : undefined,
 		rpcUrl: typeof flags.rpc === 'string' ? flags.rpc : undefined,
 	});
 	process.stdout.write(JSON.stringify(cfg, null, 2) + '\n');
@@ -349,6 +353,7 @@ COMMANDS
 FLAGS
   --network <mainnet|devnet>   Target cluster.            (env SNIPER_NETWORK)
   --mode <simulate|live>       Trade mode.                (env SNIPER_MODE)
+  --confirm-live               Required with --mode live. (env SNIPER_CONFIRM_LIVE=yes)
   --rpc <url>                  Solana RPC endpoint.       (env SOLANA_RPC_URL)
   --keypair <base58|path|json> Default agent wallet secret (single-agent runs).
   --strategy <json|file>       Strategy JSON, or path to a .json file (one or
@@ -363,9 +368,10 @@ FLAGS
                                read (fail closed). Default allows-on-unknown.
 
 SAFETY
-  Default mode is SIMULATE — no funds are ever moved. Pass '--mode live' to
-  trade REAL SOL from the agent wallet. There is no confirmation prompt; live
-  means live. A mandatory stop_loss_pct is enforced on every armed strategy.
+  Default mode is SIMULATE — no funds are ever moved. Trading REAL SOL from the
+  agent wallet needs both '--mode live' and '--confirm-live' (or SNIPER_MODE=live
+  plus SNIPER_CONFIRM_LIVE=yes); either one alone is refused. There is no
+  interactive prompt. A mandatory stop_loss_pct is enforced on every armed strategy.
   Pump.fun Mayhem-mode tokens are filtered out by default (--allow-mayhem to
   opt in). Set SNIPER_MIN_MC_FLOOR_USD / SNIPER_MAX_MC_CEIL_USD to enforce a
   market-cap band so a bare strategy can't buy freshly-launched dust.
@@ -387,7 +393,7 @@ EXAMPLES
     --strategy '{"id":"s1","agent_id":"a1","stop_loss_pct":35,"per_trade_sol":0.05,"daily_budget_sol":1}'
 
   # LIVE on mainnet with a durable store and a wallet file
-  agent-sniper run --mode live --rpc https://your-rpc \\
+  agent-sniper run --mode live --confirm-live --rpc https://your-rpc \\
     --keypair ./agent.json --strategy ./strategies.json --sqlite ./sniper.db
 
   # Run the MCP server / x402 API faces

@@ -142,8 +142,9 @@ own adapters — pass `{ config, store, wallet, solana, executor, feed, hooks }`
 ## CLI usage
 
 The package installs an `agent-sniper` binary. Default mode is **simulate** — it
-will not move funds until you pass `--mode live` (or set `SNIPER_MODE=live`),
-which trades **real funds**.
+will not move funds. Trading **real funds** takes two separate switches:
+`--mode live` **and** `--confirm-live` (or `SNIPER_MODE=live` plus
+`SNIPER_CONFIRM_LIVE=yes`). Either one alone is refused at startup.
 
 ```bash
 # Run the engine. Mode defaults to simulate; live trades real funds.
@@ -160,7 +161,7 @@ agent-sniper help
 ```
 
 > **Safety.** `run`/`serve`/`mcp` all start in simulate mode unless you opt into
-> live explicitly. In live mode every armed strategy can spend up to its
+> live explicitly with both switches above. In live mode every armed strategy can spend up to its
 > `daily_budget_lamports` per UTC day. Read **Safety & guardrails** below before
 > you flip the switch.
 
@@ -358,6 +359,7 @@ overrides passed to `createSniper`/`loadConfig` always win. See `.env.example`.
 |----------|---------|---------|
 | `SNIPER_NETWORK` | `mainnet` | `mainnet` \| `devnet`. |
 | `SNIPER_MODE` | `simulate` | `simulate` \| `live`. Simulate never broadcasts. |
+| `SNIPER_CONFIRM_LIVE` | — | Must be exactly `yes` (or `confirmLive: true` / `--confirm-live`) for `live` to start. |
 | `SOLANA_RPC_URL` | — | RPC endpoint. Live mode requires this (or `HELIUS_API_KEY`). |
 | `SNIPER_GLOBAL_KILL` | `false` | Emergency switch — halts all buys when true. |
 | `SNIPER_POLL_MS` | `5000` | Position re-quote / exit cadence (floor 1000). |
@@ -374,8 +376,10 @@ overrides passed to `createSniper`/`loadConfig` always win. See `.env.example`.
 
 ## Safety & guardrails
 
-- **Simulate by default.** Every face starts in simulate mode. You opt into live
-  trading explicitly.
+- **Simulate by default.** Every face starts in simulate mode. Live trading
+  needs `mode: 'live'` **and** a separately named confirmation (`confirmLive: true`,
+  `--confirm-live` or `SNIPER_CONFIRM_LIVE=yes`), so a stray `SNIPER_MODE=live`
+  cannot start a session that spends.
 - **Mandatory stop-loss.** A strategy without `stop_loss_pct` is never armed.
 - **Daily budget + concurrency caps.** Per-agent `daily_budget_lamports` and
   `max_concurrent_positions` are enforced before any transaction is built

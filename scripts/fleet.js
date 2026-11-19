@@ -301,7 +301,7 @@ async function cmdRun(flags) {
 		const store = createMemoryStore({ strategies });
 		const solana = await createPumpClient({ network: keys.network, rpcUrl });
 		sniper = createSniper({
-			config: { network: keys.network, mode, rpcUrl },
+			config: { network: keys.network, mode, confirmLive: mode === 'live', rpcUrl },
 			store,
 			wallet: createSelfCustodyWallet({ secrets }),
 			solana,
@@ -315,7 +315,7 @@ async function cmdRun(flags) {
 		console.log(`  Console + API on http://localhost:${port}/  (film this)\n`);
 		if (tg.enabled) tg.startSummary(sniper, store);
 	} else {
-		sniper = await presets.local({ network: keys.network, mode, rpcUrl, strategies, secrets, hooks });
+		sniper = await presets.local({ network: keys.network, mode, confirmLive: mode === 'live', rpcUrl, strategies, secrets, hooks });
 		await sniper.start();
 		if (tg.enabled) tg.startSummary(sniper, sniper.store || { listPositions: null });
 	}

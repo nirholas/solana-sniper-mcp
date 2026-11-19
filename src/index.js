@@ -49,6 +49,7 @@ export const presets = {
 	 * @param {object} [o]
 	 * @param {'mainnet'|'devnet'} [o.network]
 	 * @param {'simulate'|'live'} [o.mode]
+	 * @param {boolean} [o.confirmLive]   required with mode 'live'
 	 * @param {string} [o.rpcUrl]
 	 * @param {import('./types.js').Strategy[]} [o.strategies]
 	 * @param {Record<string,string>} [o.secrets]   agentId → wallet secret
@@ -59,7 +60,7 @@ export const presets = {
 		const store = createMemoryStore({ strategies: o.strategies || [] });
 		const solana = await createPumpClient({ network: o.network || 'mainnet', rpcUrl: o.rpcUrl });
 		return createSniper({
-			config: { network: o.network, mode: o.mode, rpcUrl: o.rpcUrl },
+			config: { network: o.network, mode: o.mode, confirmLive: o.confirmLive, rpcUrl: o.rpcUrl },
 			store,
 			wallet: createSelfCustodyWallet({ secrets: o.secrets }),
 			solana,
