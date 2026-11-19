@@ -165,9 +165,9 @@ async function buildSniper(flags, { screen = false } = {}) {
 	const mode = flags.mode || process.env.SNIPER_MODE || 'simulate';
 	if (mode !== 'simulate' && mode !== 'live') fail(`--mode must be simulate|live, got "${mode}"`);
 	const confirmLive = flags['confirm-live'] === true ? true : undefined;
-	const rpcUrl = flags.rpc || process.env.SOLANA_RPC_URL || null;
-	// Fail before any adapter is built (and before an RPC is touched).
-	loadConfig({ network, mode, rpcUrl, confirmLive });
+	// Fail before any adapter is built (and before an RPC is touched), and use
+	// the resolved RPC (which includes the HELIUS_API_KEY endpoint) everywhere.
+	const { rpcUrl } = loadConfig({ network, mode, rpcUrl: typeof flags.rpc === 'string' ? flags.rpc : undefined, confirmLive });
 
 	// A single default keypair drives one-agent runs; multi-agent runs resolve
 	// per-agent secrets from SNIPER_WALLET_<AGENTID> env or the sqlite store.
@@ -204,7 +204,7 @@ async function buildSniper(flags, { screen = false } = {}) {
 	// coins at the executeBuy chokepoint, so every face (run/serve/mcp) enforces
 	// it, not just the fleet script. On by default; --allow-mayhem disables it,
 	// --mayhem-strict also skips when the curve can't be read.
-	const solana = await createPumpClient({ network, rpcUrl });
+	const solana = await createPumpClient({ network, rpcUrl: rpcUrl ?? undefined });
 
 	const mayhemOn = !flags['allow-mayhem'];
 	if (mayhemOn) {

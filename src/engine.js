@@ -5,7 +5,7 @@
 // constructor: pass the adapters you want (or accept the defaults), call
 // start(), get back a handle with stop() + introspection.
 
-import { loadConfig } from './config.js';
+import { loadConfig, GENESIS_HASHES } from './config.js';
 import { log as defaultLog } from './log.js';
 import { scoreMint, scoreIntel } from './scorer.js';
 import { makeThrottle, makeQueue } from './guards.js';
@@ -137,6 +137,14 @@ export function createSniper(deps) {
 		/** Start the feed, sweep and strategy refresh. Calling it again is a no-op. */
 		async start() {
 			if (started) return this;
+			// Live mode only: refuse to trade when the RPC serves a different cluster
+			// than the config says (a mainnet URL on a 'devnet' run spends real SOL).
+			if (cfg.mode === 'live' && typeof ports.solana.connection?.getGenesisHash === 'function') {
+				const genesis = await ports.solana.connection.getGenesisHash();
+				if (genesis !== GENESIS_HASHES[cfg.network]) {
+					throw new Error(`[agent-sniper] the RPC endpoint is not on ${cfg.network} (genesis ${genesis}); refusing to trade live`);
+				}
+			}
 			started = true;
 			log.info('boot', { network: cfg.network, mode: cfg.mode, globalKill: cfg.globalKill, pollMs: cfg.pollMs });
 			screen(`Sniper online — ${cfg.network} / ${cfg.mode} mode`, 'activity');

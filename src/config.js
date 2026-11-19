@@ -69,15 +69,21 @@ export function loadConfig(overrides = {}) {
 
 	// Live trading on a public RPC will 429 under the new-mint firehose. Refuse to
 	// start live without a real endpoint rather than silently dropping trades.
-	const rpcUrl = overrides.rpcUrl || process.env.SOLANA_RPC_URL || null;
-	if (mode === 'live' && !rpcUrl && !process.env.HELIUS_API_KEY) {
+	// HELIUS_API_KEY used to satisfy this check without ever being turned into a
+	// URL, so live runs fell back to the public RPC; it now yields the Helius
+	// endpoint for the configured cluster.
+	const heliusKey = process.env.HELIUS_API_KEY?.trim();
+	const rpcUrl = overrides.rpcUrl
+		|| process.env.SOLANA_RPC_URL
+		|| (heliusKey ? `https://${network}.helius-rpc.com/?api-key=${encodeURIComponent(heliusKey)}` : null);
+	if (mode === 'live' && !rpcUrl) {
 		throw new Error('[agent-sniper] live mode requires rpcUrl / SOLANA_RPC_URL or HELIUS_API_KEY (public RPC will rate-limit)');
 	}
 
 	/** @type {SniperConfig} */
 	const cfg = {
-		network,
-		mode,
+		network: /** @type {'mainnet'|'devnet'} */ (network),
+		mode: /** @type {'live'|'simulate'} */ (mode),
 		rpcUrl,
 		globalKill: overrides.globalKill ?? bool('SNIPER_GLOBAL_KILL', false),
 		// Position re-quote / exit-evaluation cadence.
@@ -99,3 +105,9 @@ export function loadConfig(overrides = {}) {
 	};
 	return Object.freeze(cfg);
 }
+
+// Genesis hashes identify a cluster regardless of which RPC URL serves it.
+export const GENESIS_HASHES = Object.freeze({
+	mainnet: '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d',
+	devnet: 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG',
+});

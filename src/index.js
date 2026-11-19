@@ -58,15 +58,20 @@ export const presets = {
 	 */
 	async local(o = {}) {
 		const { createPumpPortalFeed } = await import('./adapters/feed/pumpportal.js');
+		// Resolve network and RPC once, the same way the engine will (options, then
+		// SNIPER_NETWORK / SOLANA_RPC_URL / HELIUS_API_KEY), and hand the SAME values
+		// to every adapter. Defaulting the client to mainnet while the engine read
+		// SNIPER_NETWORK=devnet made a 'devnet' run trade on mainnet.
+		const cfg = loadConfig({ network: o.network, mode: o.mode, confirmLive: o.confirmLive, rpcUrl: o.rpcUrl });
 		const store = createMemoryStore({ strategies: o.strategies || [] });
-		const solana = await createPumpClient({ network: o.network || 'mainnet', rpcUrl: o.rpcUrl });
+		const solana = await createPumpClient({ network: cfg.network, rpcUrl: cfg.rpcUrl ?? undefined });
 		return createSniper({
-			config: { network: o.network, mode: o.mode, confirmLive: o.confirmLive, rpcUrl: o.rpcUrl },
+			config: { network: cfg.network, mode: cfg.mode, confirmLive: o.confirmLive, rpcUrl: cfg.rpcUrl },
 			store,
 			wallet: createSelfCustodyWallet({ secrets: o.secrets }),
 			solana,
 			executor: createWeb3Executor(),
-			feed: createPumpPortalFeed({ network: o.network || 'mainnet' }),
+			feed: createPumpPortalFeed({ network: cfg.network }),
 			hooks: o.hooks,
 		});
 	},
