@@ -30,7 +30,7 @@
  * @property {string|number|bigint} per_trade_lamports      SOL per snipe
  * @property {number} [max_concurrent_positions]
  * @property {number} [slippage_bps]           default 500
- * @property {number} [max_price_impact_pct]   entry circuit breaker, default 10
+ * @property {number} [max_price_impact_pct]   entry circuit breaker, default 10; 0 disables
  * @property {'off'|'economy'|'turbo'} [mev_tip_mode]
  * @property {'block'|'warn'|'off'} [firewall_level]
  * @property {number} [min_market_cap_usd]

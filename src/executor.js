@@ -11,6 +11,7 @@ import BN from 'bn.js';
 import {
 	checkConcurrency, checkDailyBudgetLamports, checkSolHeadroom, checkPriceImpact,
 	snipeConfidence, SOL_FEE_HEADROOM_LAMPORTS, DEFAULT_SLIPPAGE_BPS, resolveSlippageBps, maxBuyCostLamports,
+	DEFAULT_MAX_PRICE_IMPACT_PCT,
 } from './guards.js';
 
 const WSOL_MINT = 'So11111111111111111111111111111111111111112';
@@ -163,7 +164,8 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 					return await fail(store, log, posId, tag, 'quote_not_sol');
 				}
 			}
-			const impact = checkPriceImpact(Number(quote.priceImpactPct), Number(strat.max_price_impact_pct));
+			// Unset means the documented 10% default; only an explicit 0 turns the gate off.
+			const impact = checkPriceImpact(Number(quote.priceImpactPct), Number(strat.max_price_impact_pct ?? DEFAULT_MAX_PRICE_IMPACT_PCT));
 			if (impact) return await fail(store, log, posId, tag, impact.reason);
 
 			// 8. rug/honeypot firewall (optional hook). 'block' aborts a block verdict;
@@ -387,7 +389,7 @@ function makeTipGuard({ strat, network, spentLamports, committedLamports, budget
 
 function buildDecision({ strat, network, candidate, posId, sig, mode, priceImpactPct, firewall, perTradeLamports }) {
 	const perTradeSol = Number(BigInt(perTradeLamports)) / 1e9;
-	const confidence = snipeConfidence({ priceImpactPct, maxImpactPct: Number(strat.max_price_impact_pct) || 10, firewallVerdict: firewall?.verdict || null });
+	const confidence = snipeConfidence({ priceImpactPct, maxImpactPct: Number(strat.max_price_impact_pct) || DEFAULT_MAX_PRICE_IMPACT_PCT, firewallVerdict: firewall?.verdict || null });
 	const trigger = candidate.entry_trigger || strat.trigger || 'new_mint';
 	return {
 		agentId: strat.agent_id, kind: 'snipe', subjectRef: candidate.mint, actionRef: String(posId), confidence, network,

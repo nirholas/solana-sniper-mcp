@@ -394,8 +394,9 @@ overrides passed to `createSniper`/`loadConfig` always win. See `.env.example`.
 - **SOL fee headroom.** `checkSolHeadroom` requires the worst-case buy cost plus
   ~0.012 SOL in the wallet, so a snipe can't drain the account below the cost of
   the very next sell's fee.
-- **Price-impact circuit breaker.** `max_price_impact_pct` (default 10) skips a
-  buy whose quote impact is too high (`checkPriceImpact`; unset ⇒ no gate).
+- **Price-impact circuit breaker.** `max_price_impact_pct` (default 10 when
+  unset) skips a buy whose quote impact is too high, and an unpriced quote fails
+  closed (`checkPriceImpact`). Only an explicit `0` disables the gate.
 - **Live-RPC refusal.** Live mode refuses to start on a public RPC — it requires
   a real endpoint so trades aren't silently dropped to rate limits.
 - **Optional firewall hook.** The `assessSafety` hook runs after the quote and

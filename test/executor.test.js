@@ -382,3 +382,19 @@ describe('executeBuy — worst-case cost reservation', () => {
 		expect(await p.store.listPositions({})).toHaveLength(0);
 	});
 });
+
+describe('executeBuy — price-impact default', () => {
+	const highImpact = () => fakeSolana({ quoteForBuy: async () => ({ priceImpactPct: 25, quoteMint: WSOL }) }).solana;
+
+	it('applies the documented 10% breaker when the strategy leaves it unset', async () => {
+		const p = ports({ solana: highImpact() });
+		const res = await executeBuy({ cfg: simCfg(), strat: strategy({ max_price_impact_pct: undefined }), candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(res).toMatchObject({ status: 'failed', reason: 'price_impact_too_high' });
+	});
+
+	it('an explicit 0 turns the breaker off', async () => {
+		const p = ports({ solana: highImpact() });
+		const res = await executeBuy({ cfg: simCfg(), strat: strategy({ max_price_impact_pct: 0 }), candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(res.status).toBe('open');
+	});
+});

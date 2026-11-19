@@ -9,6 +9,8 @@
 export const SOL_FEE_HEADROOM_LAMPORTS = 12_000_000n;
 
 export const DEFAULT_SLIPPAGE_BPS = 500;
+// Entry circuit breaker applied when a strategy leaves max_price_impact_pct unset.
+export const DEFAULT_MAX_PRICE_IMPACT_PCT = 10;
 export const MAX_SLIPPAGE_BPS = 10_000;
 
 /**
