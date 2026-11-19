@@ -29,6 +29,8 @@ import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
+import { buildStrategy, idSchema, mintSchema, strategyFieldShapes as F } from '../strategy-input.js';
+
 // Advertised MCP version tracks package.json so it can't drift from the npm release.
 const { version: PKG_VERSION } = createRequire(import.meta.url)('../../package.json');
 
@@ -39,18 +41,6 @@ const SERVER_INSTRUCTIONS =
 	'armed agents. list_strategies / list_positions / sniper_status are read-only. close_position and ' +
 	'disarm_strategy change behavior. This server is unauthenticated and meant to run locally against ' +
 	'your own wallet/RPC — never expose it on an open port without a payment/auth wrapper.';
-
-// One SOL = 1e9 lamports. SOL inputs are floats; lamports are integers stored as a
-// decimal string so a BigInt round-trips through JSON without precision loss.
-const LAMPORTS_PER_SOL = 1_000_000_000n;
-const solToLamportsString = (sol) => {
-	// Scale via integer math on a fixed-precision string to avoid float drift on the
-	// fractional part (e.g. 0.1 SOL must land on exactly 100000000 lamports).
-	const [whole, frac = ''] = String(sol).split('.');
-	const fracPadded = (frac + '000000000').slice(0, 9);
-	const lamports = BigInt(whole || '0') * LAMPORTS_PER_SOL + BigInt(fracPadded || '0');
-	return lamports.toString();
-};
 
 let _idSeq = 0;
 const nextStrategyId = () => `strat_${Date.now().toString(36)}_${(++_idSeq).toString(36)}`;
@@ -146,52 +136,33 @@ export async function createSniperMcpServer(deps = {}) {
 				'lamports for you. stop_loss_pct is mandatory — the engine refuses to arm without it. Returns ' +
 				'the stored strategy row.',
 			inputSchema: {
-				agentId: z.string().min(1).describe('Owning agent id — one wallet per agent.'),
-				strategyId: z.string().min(1).optional().describe('Reuse to update an existing strategy; omit to create one.'),
-				per_trade_sol: z.number().positive().describe('SOL committed per snipe.'),
-				daily_budget_sol: z.number().positive().describe('SOL/day spend ceiling for this agent.'),
-				stop_loss_pct: z.number().describe('REQUIRED. Exit when down this percent from entry.'),
-				take_profit_pct: z.number().optional().describe('Exit when up this percent from entry.'),
-				trailing_stop_pct: z.number().optional().describe('Exit when down this percent from peak.'),
-				max_hold_seconds: z.number().int().positive().optional().describe('Hard time-stop (default 1800).'),
-				slippage_bps: z.number().int().nonnegative().optional().describe('Entry slippage tolerance, bps (default 500).'),
-				max_price_impact_pct: z.number().optional().describe('Entry circuit breaker (default 10).'),
-				trigger: z.enum(['new_mint', 'intel_confirmed', 'first_claim', 'manual']).optional().describe('What fires the buy.'),
-				network: z.enum(['mainnet', 'devnet']).optional().describe('Chain (defaults to the sniper network).'),
-				mev_tip_mode: z.enum(['off', 'economy', 'turbo']).optional().describe('MEV tip aggressiveness.'),
-				firewall_level: z.enum(['block', 'warn', 'off']).optional().describe('Rug/honeypot firewall posture.'),
-				min_market_cap_usd: z.number().optional().describe('Skip candidates below this market cap.'),
-				max_market_cap_usd: z.number().optional().describe('Skip candidates above this market cap.'),
-				require_socials: z.boolean().optional().describe('Require twitter/telegram/website on the candidate.'),
+				agentId: idSchema.describe('Owning agent id — one wallet per agent.'),
+				strategyId: idSchema.optional().describe('Reuse to update an existing strategy; omit to create one.'),
+				per_trade_sol: F.per_trade_sol,
+				daily_budget_sol: F.daily_budget_sol,
+				stop_loss_pct: F.stop_loss_pct,
+				take_profit_pct: F.take_profit_pct,
+				trailing_stop_pct: F.trailing_stop_pct,
+				max_hold_seconds: F.max_hold_seconds,
+				slippage_bps: F.slippage_bps,
+				max_price_impact_pct: F.max_price_impact_pct,
+				trigger: F.trigger,
+				network: F.network,
+				mev_tip_mode: F.mev_tip_mode,
+				firewall_level: F.firewall_level,
+				min_market_cap_usd: F.min_market_cap_usd,
+				max_market_cap_usd: F.max_market_cap_usd,
+				require_socials: F.require_socials,
 			},
 			annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
 		},
 		async (input) => {
 			try {
-				const id = input.strategyId || nextStrategyId();
-				const strategy = {
-					id,
-					agent_id: input.agentId,
-					enabled: true,
-					trigger: input.trigger || 'new_mint',
-					network: input.network || sniper.config.network,
-					per_trade_lamports: solToLamportsString(input.per_trade_sol),
-					daily_budget_lamports: solToLamportsString(input.daily_budget_sol),
-					stop_loss_pct: input.stop_loss_pct,
-				};
-				// Only set optional fields when supplied — keep the row clean for stores
-				// that round-trip it to a typed column (null vs absent matters in SQL).
-				if (input.take_profit_pct != null) strategy.take_profit_pct = input.take_profit_pct;
-				if (input.trailing_stop_pct != null) strategy.trailing_stop_pct = input.trailing_stop_pct;
-				if (input.max_hold_seconds != null) strategy.max_hold_seconds = input.max_hold_seconds;
-				if (input.slippage_bps != null) strategy.slippage_bps = input.slippage_bps;
-				if (input.max_price_impact_pct != null) strategy.max_price_impact_pct = input.max_price_impact_pct;
-				if (input.mev_tip_mode != null) strategy.mev_tip_mode = input.mev_tip_mode;
-				if (input.firewall_level != null) strategy.firewall_level = input.firewall_level;
-				if (input.min_market_cap_usd != null) strategy.min_market_cap_usd = input.min_market_cap_usd;
-				if (input.max_market_cap_usd != null) strategy.max_market_cap_usd = input.max_market_cap_usd;
-				if (input.require_socials != null) strategy.require_socials = input.require_socials;
-
+				const strategy = buildStrategy(input, {
+					id: input.strategyId || nextStrategyId(),
+					agentId: input.agentId,
+					network: sniper.config.network,
+				});
 				const stored = (await writeStrategy(store, strategy)) || strategy;
 				return ok({ ok: true, strategy: stored });
 			} catch (err) {
@@ -209,7 +180,7 @@ export async function createSniperMcpServer(deps = {}) {
 		{
 			title: 'Disarm snipe strategy',
 			description: 'Disable an armed strategy (enabled=false). The agent stops sniping new candidates; open positions still exit on their own rules.',
-			inputSchema: { strategyId: z.string().min(1).describe('Strategy id to disarm.') },
+			inputSchema: { strategyId: idSchema.describe('Strategy id to disarm.') },
 			annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
 		},
 		async ({ strategyId }) => {
@@ -255,11 +226,11 @@ export async function createSniperMcpServer(deps = {}) {
 		'snipe_now',
 		{
 			title: 'Snipe a mint now',
-			description: 'Force a manual buy of a pump.fun mint across all armed agents (bypasses the candidate scorer). In simulate mode no funds move.',
+			description: 'Force a manual buy of a pump.fun mint across all armed agents, or only agentId\'s strategies when given (bypasses the candidate scorer; every pre-trade guard still applies). In simulate mode no funds move.',
 			inputSchema: {
-				mint: z.string().min(1).describe('The pump.fun token mint to buy.'),
-				symbol: z.string().optional().describe('Optional ticker for logs/screen.'),
-				agentId: z.string().optional().describe('Reserved for future per-agent targeting; current build snipes all armed agents.'),
+				mint: mintSchema.describe('The pump.fun token mint to buy.'),
+				symbol: z.string().max(32).optional().describe('Optional ticker for logs/screen.'),
+				agentId: idSchema.optional().describe('Only buy with this agent\'s armed strategies.'),
 			},
 			annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
 		},
@@ -267,8 +238,9 @@ export async function createSniperMcpServer(deps = {}) {
 			try {
 				const candidate = { mint, entry_trigger: 'manual' };
 				if (symbol) candidate.symbol = symbol;
-				sniper.submitCandidate(candidate, { force: true });
-				return ok({ ok: true, scheduled: true, mint, agentId: agentId || null });
+				if (agentId) candidate.agent_id = agentId;
+				const queued = sniper.submitCandidate(candidate, { force: true });
+				return ok({ ok: true, scheduled: queued > 0, queued, mint, agentId: agentId || null });
 			} catch (err) {
 				return fail(err);
 			}
@@ -282,7 +254,7 @@ export async function createSniperMcpServer(deps = {}) {
 			title: 'List positions',
 			description: 'List sniper positions, optionally filtered by agentId and/or status (opening|open|closing|closed|failed).',
 			inputSchema: {
-				agentId: z.string().optional().describe('Filter to one agent.'),
+				agentId: idSchema.optional().describe('Filter to one agent.'),
 				status: z.enum(['opening', 'open', 'closing', 'closed', 'failed']).optional().describe('Filter by lifecycle status.'),
 			},
 			annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -311,7 +283,7 @@ export async function createSniperMcpServer(deps = {}) {
 		{
 			title: 'Close a position',
 			description: 'Schedule an exit for an open position. Flips its kill switch; the next position sweep sells it through the normal exit path. Returns once scheduled — the sell lands shortly after.',
-			inputSchema: { positionId: z.string().min(1).describe('Position id to close (from list_positions).') },
+			inputSchema: { positionId: idSchema.describe('Position id to close (from list_positions).') },
 			annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
 		},
 		async ({ positionId }) => {

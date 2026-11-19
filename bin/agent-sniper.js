@@ -13,8 +13,6 @@
 
 import fs from 'node:fs';
 import process from 'node:process';
-import { LAMPORTS_PER_SOL } from '@solana/web3.js';
-
 import {
 	loadConfig,
 	createSelfCustodyWallet,
@@ -24,6 +22,7 @@ import {
 	createPumpPortalFeed,
 	createSniper,
 } from '../src/index.js';
+import { solToLamports, strategyRowProblems } from '../src/strategy-input.js';
 
 // ── tiny flag parser ────────────────────────────────────────────────────────
 // Hand-rolled so the binary stays zero-dep. Supports `--flag value`,
@@ -97,16 +96,11 @@ function loadStrategiesFlag(value) {
 	return arr;
 }
 
-// SOL → lamports for the human-friendly amount fields. Strategies are stored in
-// lamports; users think in SOL. Convert here so the engine sees what it expects.
-function solToLamports(sol) {
-	return BigInt(Math.round(Number(sol) * LAMPORTS_PER_SOL));
-}
-
 // Take an author-friendly strategy (per_trade_sol / daily_budget_sol) and emit
 // the lamport-denominated shape the engine reads. Already-lamport fields pass
-// through untouched. stop_loss_pct is mandatory — the engine drops strategies
-// without it, so we reject early rather than silently no-op.
+// through untouched. The result goes through the same checks as the MCP and
+// HTTP faces (stop-loss in (0, 100], per-trade <= budget, valid slippage), so a
+// strategy the engine would mis-handle is rejected here, not discovered live.
 function normalizeStrategy(s, idx = 0) {
 	if (!s || typeof s !== 'object') fail(`strategy #${idx} is not an object`);
 	if (s.stop_loss_pct == null) fail(`strategy #${idx} (${s.id || 'unnamed'}) is missing stop_loss_pct — a stop-loss is mandatory`);
@@ -117,9 +111,14 @@ function normalizeStrategy(s, idx = 0) {
 	out.enabled = s.enabled !== false; // default armed unless explicitly disabled
 	out.trigger = s.trigger || 'new_mint';
 
+	const sol = (field) => {
+		try { return solToLamports(s[field]).toString(); }
+		catch { return fail(`strategy #${idx}: ${field} must be a non-negative SOL amount with at most 9 decimals`); }
+	};
+
 	if (out.per_trade_lamports == null) {
 		if (s.per_trade_sol == null) fail(`strategy #${idx} needs per_trade_sol or per_trade_lamports`);
-		out.per_trade_lamports = solToLamports(s.per_trade_sol).toString();
+		out.per_trade_lamports = sol('per_trade_sol');
 	} else {
 		out.per_trade_lamports = String(out.per_trade_lamports);
 	}
@@ -127,12 +126,14 @@ function normalizeStrategy(s, idx = 0) {
 
 	if (out.daily_budget_lamports == null) {
 		if (s.daily_budget_sol == null) fail(`strategy #${idx} needs daily_budget_sol or daily_budget_lamports`);
-		out.daily_budget_lamports = solToLamports(s.daily_budget_sol).toString();
+		out.daily_budget_lamports = sol('daily_budget_sol');
 	} else {
 		out.daily_budget_lamports = String(out.daily_budget_lamports);
 	}
 	delete out.daily_budget_sol;
 
+	const problems = strategyRowProblems(out);
+	if (problems.length) fail(`strategy #${idx} (${out.id}): ${problems.join('; ')}`);
 	return out;
 }
 
