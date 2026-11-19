@@ -229,6 +229,24 @@ async function buildSniper(flags, { screen = false } = {}) {
 	return { sniper, store, wallet, strategies, network, mode, keypairSecret };
 }
 
+// Drain the engine (in-flight buys and the current sweep) before exiting on
+// SIGINT/SIGTERM, then run the face's own cleanup. A second signal while
+// draining is ignored rather than killing a trade mid-broadcast.
+function exitOnSignal(sniper, { onStop, announce } = {}) {
+	let stopping = false;
+	const shutdown = async (sig) => {
+		if (stopping) return;
+		stopping = true;
+		announce?.(sig);
+		try { await sniper.stop(); } catch { /* best-effort */ }
+		try { await onStop?.(); } catch { /* best-effort */ }
+		process.exit(0);
+	};
+	process.on('SIGINT', () => shutdown('SIGINT'));
+	process.on('SIGTERM', () => shutdown('SIGTERM'));
+	return shutdown;
+}
+
 // ── commands ────────────────────────────────────────────────────────────────
 
 async function cmdRun(flags) {
@@ -254,17 +272,7 @@ async function cmdRun(flags) {
 	line('');
 
 	await sniper.start();
-
-	let stopping = false;
-	const shutdown = async (sig) => {
-		if (stopping) return;
-		stopping = true;
-		line(`\n  ${sig} — draining and stopping…`);
-		try { await sniper.stop(); } catch { /* best-effort */ }
-		process.exit(0);
-	};
-	process.on('SIGINT', () => shutdown('SIGINT'));
-	process.on('SIGTERM', () => shutdown('SIGTERM'));
+	exitOnSignal(sniper, { announce: (sig) => line(`\n  ${sig} — draining and stopping…`) });
 
 	// Keep the process alive; the feed + timers do the work.
 	return new Promise(() => {});
@@ -282,7 +290,14 @@ async function cmdMcp(flags) {
 		throw err;
 	}
 	if (typeof mod.startStdio !== 'function') fail('mcp face not available');
-	await mod.startStdio({ sniper, store });
+	// The face only starts engines it builds itself; this one is ours. Without
+	// it the strategy cache stays empty, the sweep never runs and snipe_now
+	// queues nothing.
+	await sniper.start();
+	const server = await mod.startStdio({ sniper, store });
+	const shutdown = exitOnSignal(sniper, { onStop: () => server.close() });
+	// The MCP client closing stdin is the normal way a stdio server is stopped.
+	process.stdin.once('end', () => shutdown('stdin closed'));
 }
 
 async function cmdServe(flags) {
@@ -299,8 +314,8 @@ async function cmdServe(flags) {
 	}
 	const serve = mod.serve || mod.default;
 	if (typeof serve !== 'function') fail('api face not available');
-	await serve({ sniper, store, port });
-	process.stderr.write(`agent-sniper x402 API listening on :${port}\n`);
+	const { server } = await serve({ sniper, store }, { port });
+	exitOnSignal(sniper, { onStop: () => new Promise((resolve) => server.close(resolve)) });
 }
 
 async function cmdArm(flags) {
