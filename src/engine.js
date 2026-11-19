@@ -102,8 +102,16 @@ export function createSniper(deps) {
 		}
 	}
 
-	async function sweep() {
-		await runPositionSweep(cfg, ports);
+	// One sweep at a time. setInterval keeps firing while a slow sweep (many
+	// positions, a lagging RPC) is still running; overlapping sweeps would value
+	// and exit the same positions twice.
+	/** @type {Promise<void>|null} */
+	let sweeping = null;
+	function sweep() {
+		if (!sweeping) {
+			sweeping = runPositionSweep(cfg, ports).finally(() => { sweeping = null; });
+		}
+		return sweeping;
 	}
 
 	return {

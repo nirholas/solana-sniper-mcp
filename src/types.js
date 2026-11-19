@@ -113,6 +113,9 @@
  *   Atomically reserve the (agent_id, mint, network) slot. Return the new
  *   Position row, or null if the slot is already held (→ skip, no double buy).
  * @property {(id: string, patch: Partial<Position>) => Promise<void>} updatePosition
+ * @property {(id: string) => Promise<Position|null>} [getPosition]
+ *   Optional fresh read of one position. When present, a sell re-reads the row
+ *   under the per-agent lock and skips a position that is no longer open.
  * @property {(network: string) => Promise<Position[]>} getOpenPositions
  *   Positions in status 'open' (and 'opening' older than a grace window).
  * @property {(e: SpendEvent) => Promise<void>} [recordSpend]

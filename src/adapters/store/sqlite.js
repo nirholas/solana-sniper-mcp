@@ -330,6 +330,10 @@ export function createSqliteStore(opts = {}) {
 			return rowToPosition(stmtGetPosition.get(row.id));
 		},
 
+		async getPosition(id) {
+			return rowToPosition(stmtGetPosition.get(id));
+		},
+
 		async updatePosition(id, patch) {
 			const cur = stmtGetPosition.get(id);
 			if (!cur) return;

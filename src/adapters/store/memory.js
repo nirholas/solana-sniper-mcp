@@ -98,6 +98,11 @@ export function createMemoryStore(seed = {}) {
 			return { ...pos };
 		},
 
+		async getPosition(id) {
+			const p = positions.get(id);
+			return p ? { ...p } : null;
+		},
+
 		async updatePosition(id, patch) {
 			const cur = positions.get(id);
 			if (!cur) return;

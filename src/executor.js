@@ -18,20 +18,36 @@ const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 // ── per-agent serialization ──────────────────────────────────────────────────
 // A per-agent in-process lock makes the budget + concurrency checks race-free
 // within one process. (Horizontal scaling needs an atomic Store reservation — see
-// README "Scaling beyond one process".)
+// README "Scaling beyond one process".) The map holds the tail of each agent's
+// queue and is cleared once the last holder releases, so it does not grow with
+// the number of agents ever seen.
+/** @type {Map<string, Promise<void>>} */
 const _locks = new Map();
+/**
+ * @template T
+ * @param {string} agentId
+ * @param {() => Promise<T>} fn
+ * @returns {Promise<T>}
+ */
 async function withAgentLock(agentId, fn) {
 	const prev = _locks.get(agentId) || Promise.resolve();
+	/** @type {() => void} */
 	let release;
-	const next = new Promise((r) => (release = r));
-	_locks.set(agentId, prev.then(() => next));
+	const gate = new Promise((r) => { release = () => r(undefined); });
+	const tail = prev.then(() => gate);
+	_locks.set(agentId, tail);
 	await prev;
 	try {
 		return await fn();
 	} finally {
 		release();
-		if (_locks.get(agentId) === next) _locks.delete(agentId);
+		if (_locks.get(agentId) === tail) _locks.delete(agentId);
 	}
+}
+
+/** Number of agents with a held or queued lock. Exposed for tests. */
+export function pendingAgentLocks() {
+	return _locks.size;
 }
 
 const toBN = (v) => new BN(BigInt(v).toString());
@@ -208,9 +224,22 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
  * @param {string} p.reason
  * @param {Ports} p.ports
  */
-export async function executeSell({ cfg, position, reason, ports, fraction = 1, recoversInitials = false }) {
+export async function executeSell({ cfg, position: snapshot, reason, ports, fraction = 1, recoversInitials = false }) {
 	const { store, wallet, solana, executor, hooks, log } = ports;
-	return withAgentLock(position.agent_id, async () => {
+	return withAgentLock(snapshot.agent_id, async () => {
+		// The caller's row may be stale: another sell for this position (a manual
+		// close, an overlapping sweep) can have run while we waited for the lock.
+		// Re-read it so a closed position is not sold twice and a partial exit sizes
+		// itself from the remaining bag, not the pre-sale one.
+		let position = snapshot;
+		if (typeof store.getPosition === 'function') {
+			const fresh = await store.getPosition(snapshot.id);
+			if (!fresh || (fresh.status !== 'open' && fresh.status !== 'closing')) {
+				log.info('sell skipped: position no longer open', { agent: snapshot.agent_id, mint: snapshot.mint, status: fresh?.status ?? 'missing' });
+				return { status: 'skip', reason: 'not_open' };
+			}
+			position = { ...snapshot, ...fresh };
+		}
 		// Laddered exits sell only PART of the bag (take-initials). Resolve the sell
 		// size in ppm of the current base amount so the moon-bag remainder is exact,
 		// and decide up front whether this closes the position.
