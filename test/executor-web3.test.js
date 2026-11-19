@@ -102,7 +102,6 @@ describe('createWeb3Executor duplicate-broadcast safety', () => {
 		let landed = null; let polls = 0;
 		const connection = mockConnection({ sendThrows: true, heightSeq: () => 50 });
 		// capture what WOULD have been sent (signature is computed pre-send)
-		const origSend = connection.sendRawTransaction.bind(connection);
 		connection.sendRawTransaction = async (raw) => {
 			landed = bs58.encode(VersionedTransaction.deserialize(raw).signatures[0]);
 			connection.distinct.add(landed); connection.broadcasts.push(landed);
@@ -116,12 +115,11 @@ describe('createWeb3Executor duplicate-broadcast safety', () => {
 	});
 
 	it('provably dead (expired + absent from grace sweep) → mints exactly one new generation', async () => {
-		let sendN = 0; let secondSig = null;
+		let secondSig = null;
 		const connection = mockConnection({ heightSeq: () => 999 }); // always expired
 		const origSend = connection.sendRawTransaction.bind(connection);
 		connection.sendRawTransaction = async (raw) => {
 			const sig = await origSend(raw);
-			sendN = connection.distinct.size;
 			if (connection.distinct.size === 2) secondSig = sig;
 			return sig;
 		};

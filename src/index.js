@@ -13,7 +13,6 @@ import { createSniper } from './engine.js';
 import { loadConfig } from './config.js';
 import { createMemoryStore } from './adapters/store/memory.js';
 import { createSelfCustodyWallet } from './adapters/wallet/self-custody.js';
-import { createCustodialWallet } from './adapters/wallet/custodial.js';
 import { createPumpClient } from './adapters/solana/pump-client.js';
 import { createWeb3Executor } from './adapters/solana/executor-web3.js';
 

@@ -24,7 +24,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
 import {
 	Connection, Keypair, PublicKey, SystemProgram, Transaction,
 	LAMPORTS_PER_SOL, sendAndConfirmTransaction,
@@ -36,7 +35,6 @@ import {
 	createPumpClient, createWeb3Executor, createPumpPortalFeed,
 } from '../src/index.js';
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 // ── tunables ──────────────────────────────────────────────────────────────────
 const DEFAULTS = {
@@ -332,11 +330,11 @@ async function cmdRun(flags) {
 	const stop = async () => {
 		clearInterval(tick);
 		console.log('\n  Stopping…');
-		try { await sniper.stop?.(); } catch {}
+		try { await sniper.stop?.(); } catch { /* best-effort on shutdown */ }
 		const s = sniper.stats();
 		if (tg.enabled) {
 			tg.stop();
-			try { await tg.announce(`🛑 <b>Fleet stopped</b> · Buys ${s.buys} · Sells ${s.sells} · Errors ${s.errors}`); } catch {}
+			try { await tg.announce(`🛑 <b>Fleet stopped</b> · Buys ${s.buys} · Sells ${s.sells} · Errors ${s.errors}`); } catch { /* telegram is best-effort */ }
 		}
 		console.log('  Final stats:', JSON.stringify(s));
 		process.exit(0);

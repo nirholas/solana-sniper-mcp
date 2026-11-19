@@ -43,7 +43,7 @@ try {
 	if (sub) await sub.click(); else await page.keyboard.press('Enter');
 	// success = navigation off /login
 	let signedIn = false;
-	try { await page.waitForURL((u) => !/\/login/.test(u.toString()), { timeout: 20_000 }); signedIn = true; } catch {}
+	try { await page.waitForURL((u) => !/\/login/.test(u.toString()), { timeout: 20_000 }); signedIn = true; } catch { /* still on the login page */ }
 	console.log('signed in:', signedIn, '→', page.url());
 	if (!signedIn) { await shot('login-failed'); throw new Error('login failed'); }
 

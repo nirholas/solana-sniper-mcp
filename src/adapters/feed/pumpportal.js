@@ -30,10 +30,9 @@ const RECONNECT_MAX_MS = 30_000;
 // will cycle the socket). 3 min is well past any quiet stretch on a live feed.
 const DEFAULT_WATCHDOG_MS = 180_000;
 
-// Solana mainnet quote mints. PumpPortal exposes a quote/pool field on v2 coins;
+// Solana mainnet USDC mint. PumpPortal exposes a quote/pool field on v2 coins;
 // only an explicit USDC quote flips `is_usdc_pair`. Anything else (or absent) is
 // treated as the native SOL pair, matching the bonding-curve default.
-const WSOL_MINT = 'So11111111111111111111111111111111111111112';
 const USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
 
 // Live SOL price for market-cap enrichment. PumpPortal's firehose reports market

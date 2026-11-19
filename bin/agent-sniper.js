@@ -12,19 +12,18 @@
 // agent wallet and must be opted into explicitly with `--mode live`.
 
 import fs from 'node:fs';
-import path from 'node:path';
 import process from 'node:process';
-import { fileURLToPath } from 'node:url';
 import { LAMPORTS_PER_SOL } from '@solana/web3.js';
 
 import {
-	presets,
 	loadConfig,
 	createSelfCustodyWallet,
 	createMemoryStore,
+	createPumpClient,
+	createWeb3Executor,
+	createPumpPortalFeed,
+	createSniper,
 } from '../src/index.js';
-
-const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 // ── tiny flag parser ────────────────────────────────────────────────────────
 // Hand-rolled so the binary stays zero-dep. Supports `--flag value`,
@@ -210,9 +209,8 @@ async function buildSniper(flags, { screen = false } = {}) {
 	// wallet so the resolved default secret is honored without env round-trips.
 	const wallet = createSelfCustodyWallet(keypairSecret ? { defaultSecret: keypairSecret } : {});
 
-	// presets.local takes a config-ish object; re-create the wiring it does but
-	// with our store + wallet so we control persistence and key resolution.
-	const { createPumpClient, createWeb3Executor, createPumpPortalFeed, createSniper } = await import('../src/index.js');
+	// Same wiring as presets.local, but with our store + wallet so we control
+	// persistence and key resolution.
 	const solana = await createPumpClient({ network, rpcUrl });
 	const sniper = createSniper({
 		config: { network, mode, rpcUrl },

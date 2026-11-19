@@ -73,7 +73,7 @@ export function createTelegramTracker({ token, chatId, network, archetypeByAgent
 		const tick = async () => {
 			const s = (sniper.stats && sniper.stats()) || {};
 			let open = 0;
-			try { open = (store.listPositions ? await store.listPositions({ status: 'open' }) : []).length; } catch {}
+			try { open = (store.listPositions ? await store.listPositions({ status: 'open' }) : []).length; } catch { /* summary is best-effort */ }
 			send(token, chatId,
 				`📊 <b>Fleet</b> · ${s.strategies || 0} agents · ${network}\n`
 				+ `Open ${open} · Buys ${s.buys || 0} · Sells ${s.sells || 0} · Errors ${s.errors || 0}\n`

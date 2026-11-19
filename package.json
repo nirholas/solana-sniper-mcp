@@ -57,7 +57,8 @@
 		"start": "node bin/agent-sniper.js run",
 		"mcp": "node bin/agent-sniper.js mcp",
 		"serve": "node bin/agent-sniper.js serve",
-		"test": "vitest run"
+		"test": "vitest run",
+		"lint": "eslint ."
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",
@@ -79,10 +80,14 @@
 		"express": "^5.2.1"
 	},
 	"devDependencies": {
-		"vitest": "^5.0.1",
+		"@eslint/js": "^9.39.5",
 		"bigint-buffer": "file:vendor/bigint-buffer",
 		"deepmerge": "file:vendor/deepmerge",
-		"elliptic": "file:vendor/elliptic"
+		"elliptic": "file:vendor/elliptic",
+		"eslint": "^9.39.5",
+		"globals": "^16.5.0",
+		"typescript": "~6.0.3",
+		"vitest": "^5.0.1"
 	},
 	"bugs": {
 		"url": "https://github.com/nirholas/solana-sniper-mcp/issues"
