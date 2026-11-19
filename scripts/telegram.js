@@ -11,6 +11,9 @@
 
 const api = (token, method) => `https://api.telegram.org/bot${token}/${method}`;
 
+// The bot token is part of the URL; never let it reach a log line.
+const scrub = (msg, token) => String(msg).split(token).join('***');
+
 async function send(token, chatId, text) {
 	try {
 		const res = await fetch(api(token, 'sendMessage'), {
@@ -22,9 +25,13 @@ async function send(token, chatId, text) {
 			const b = await res.json().catch(() => ({}));
 			console.log(`  [tg] ${res.status} ${b.description || ''}`);
 		}
-	} catch (e) { console.log('  [tg]', e.message.slice(0, 80)); }
+	} catch (e) { console.log('  [tg]', scrub(e.message, token).slice(0, 80)); }
 }
 
+// Token names, symbols and agent ids come from untrusted feeds and callers. The
+// messages use parse_mode HTML, so every interpolated value is escaped: a coin
+// named `<a href="...">claim</a>` must render as text, not as a link.
+const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const short = (a) => (a ? `${a.slice(0, 4)}…${a.slice(-4)}` : '');
 const txLink = (sig, network) =>
 	sig && sig !== 'SIMULATED' ? `https://solscan.io/tx/${sig}${network === 'devnet' ? '?cluster=devnet' : ''}` : null;
@@ -39,32 +46,34 @@ const num = (v, d = 4) => Number(v || 0).toFixed(d);
  * @param {number} [o.summaryMs]           portfolio-summary cadence (default 15 min)
  * @returns {{hooks: object, startSummary: Function, stop: Function, announce: Function, enabled: boolean}}
  */
+export { esc as escapeTelegramHtml };
+
 export function createTelegramTracker({ token, chatId, network, archetypeByAgent = {}, summaryMs = 900_000 }) {
 	if (!token || !chatId) return { hooks: {}, startSummary() {}, stop() {}, async announce() {}, enabled: false };
-	const tag = (id) => (archetypeByAgent[id] ? ` [${archetypeByAgent[id]}]` : '');
+	const tag = (id) => (archetypeByAgent[id] ? ` [${esc(archetypeByAgent[id])}]` : '');
 
 	const hooks = {
 		onBuy: (p) => {
 			const c = p.candidate || {};
-			const sym = c.symbol ? `$${c.symbol}` : short(c.mint);
+			const sym = esc(c.symbol ? `$${c.symbol}` : short(c.mint));
 			const tx = txLink(p.sig, network);
 			const sim = p.mode === 'simulate' ? ' <i>(sim)</i>' : '';
 			send(token, chatId,
-				`🟢 <b>BUY</b> · ${p.strategy?.agent_id || ''}${tag(p.strategy?.agent_id)}${sim}\n`
+				`🟢 <b>BUY</b> · ${esc(p.strategy?.agent_id)}${tag(p.strategy?.agent_id)}${sim}\n`
 				+ `${sym} · ${num(p.solSpent)} SOL\n`
-				+ `<code>${short(c.mint)}</code>${tx ? ` · <a href="${tx}">tx</a>` : ''}`);
+				+ `<code>${esc(short(c.mint))}</code>${tx ? ` · <a href="${esc(tx)}">tx</a>` : ''}`);
 		},
 		onSell: (p) => {
 			const pos = p.position || {};
 			const id = pos.agentId || pos.agent_id || '';
-			const sym = pos.symbol ? `$${pos.symbol}` : short(pos.mint);
+			const sym = esc(pos.symbol ? `$${pos.symbol}` : short(pos.mint));
 			const up = Number(p.pnlPct) >= 0;
 			const tx = txLink(p.sig, network);
 			const sim = p.mode === 'simulate' ? ' <i>(sim)</i>' : '';
 			send(token, chatId,
-				`${up ? '🟩' : '🟥'} <b>SELL</b> · ${id}${tag(id)}${sim}\n`
+				`${up ? '🟩' : '🟥'} <b>SELL</b> · ${esc(id)}${tag(id)}${sim}\n`
 				+ `${sym} · <b>${up ? '+' : ''}${num(p.pnlPct, 1)}%</b> (${up ? '+' : ''}${num(p.pnlSol)} SOL)\n`
-				+ `${p.exitReason || ''}${tx ? ` · <a href="${tx}">tx</a>` : ''}`);
+				+ `${esc(p.exitReason)}${tx ? ` · <a href="${esc(tx)}">tx</a>` : ''}`);
 		},
 	};
 
@@ -75,7 +84,7 @@ export function createTelegramTracker({ token, chatId, network, archetypeByAgent
 			let open = 0;
 			try { open = (store.listPositions ? await store.listPositions({ status: 'open' }) : []).length; } catch { /* summary is best-effort */ }
 			send(token, chatId,
-				`📊 <b>Fleet</b> · ${s.strategies || 0} agents · ${network}\n`
+				`📊 <b>Fleet</b> · ${s.strategies || 0} agents · ${esc(network)}\n`
 				+ `Open ${open} · Buys ${s.buys || 0} · Sells ${s.sells || 0} · Errors ${s.errors || 0}\n`
 				+ `Candidates seen: ${s.candidates || 0}`);
 		};
