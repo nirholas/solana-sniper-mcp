@@ -99,13 +99,15 @@ export function createWeb3Executor(opts = {}) {
 					// A veto (throw) means "don't tip" — drop to the untipped protected
 					// route, which the unified retry loop below runs when useJito is false.
 					try { await onTip(tipLamports, 'jito'); }
-					catch { tipLamports = 0n; tipIx = null; useJito = false; }
+					catch { tipLamports = 0n; useJito = false; }
 				}
-				tipIx = SystemProgram.transfer({
-					fromPubkey: payer.publicKey,
-					toPubkey: new PublicKey(pickTipAccount(payer.publicKey.toBuffer()[0])),
-					lamports: Number(tipLamports),
-				});
+				if (useJito) {
+					tipIx = SystemProgram.transfer({
+						fromPubkey: payer.publicKey,
+						toPubkey: new PublicKey(pickTipAccount(payer.publicKey.toBuffer()[0])),
+						lamports: Number(tipLamports),
+					});
+				}
 			}
 
 			let fallbackReason = null;

@@ -232,3 +232,39 @@ describe('executeBuy — live landing outcomes', () => {
 		expect(second).toMatchObject({ status: 'open', sig: 'sig_ok' });
 	});
 });
+
+describe('executeBuy — quote asset and tip ledger', () => {
+	it('fails closed when a SOL-only strategy gets a quote without quoteMint', async () => {
+		const { solana } = fakeSolana({ quoteForBuy: async () => ({ priceImpactPct: 1 }) });
+		const p = ports({ solana });
+		const res = await executeBuy({ cfg: simCfg(), strat: strategy(), candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(res).toMatchObject({ status: 'failed', reason: 'quote_mint_missing' });
+	});
+
+	it('rejects a non-SOL quote unless the strategy opts out', async () => {
+		const usdc = new PublicKey('EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v');
+		const { solana } = fakeSolana({ quoteForBuy: async () => ({ priceImpactPct: 1, quoteMint: usdc }) });
+		const p = ports({ solana });
+		const blocked = await executeBuy({ cfg: simCfg(), strat: strategy(), candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(blocked.reason).toBe('quote_not_sol');
+		const allowed = await executeBuy({ cfg: simCfg(), strat: strategy({ require_sol_quote: false }), candidate: { mint: mints(1)[0] }, throttle: openThrottle, ports: p });
+		expect(allowed.status).toBe('open');
+	});
+
+	it('records an MEV tip under the engine network, not a mainnet default', async () => {
+		const executor = {
+			submit: vi.fn(async ({ onTip }) => {
+				await onTip(100_000n, 'jito');
+				return { signature: 'sig_tip', route: 'jito', tipLamports: 100_000n };
+			}),
+		};
+		const store = createMemoryStore();
+		const p = ports({ store, executor });
+		const strat = strategy({ network: undefined, mev_tip_mode: 'economy' });
+		const cfg = loadConfig({ network: 'devnet', mode: 'live', rpcUrl: 'http://127.0.0.1:8899', confirmLive: true });
+		await executeBuy({ cfg, strat, candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		const tips = store._spend.filter((e) => e.category === 'mev_tip');
+		expect(tips).toHaveLength(1);
+		expect(tips[0].network).toBe('devnet');
+	});
+});

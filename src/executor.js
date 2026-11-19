@@ -132,9 +132,17 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 
 			// 7. quote + price-impact circuit breaker
 			const quote = await solana.quoteForBuy({ mint: mintPk, quoteLamports: perTrade, slippagePct });
-			if (strat.require_sol_quote !== false && quote.quoteMint && quote.quoteMint.toBase58 &&
-				quote.quoteMint.toBase58() !== WSOL_MINT && !quote.quoteMint.equals?.(PublicKey.default)) {
-				return await fail(store, log, posId, tag, 'quote_not_sol');
+			// A SOL-only strategy needs the quote asset reported, not assumed: a
+			// custom SolanaClient that omits quoteMint must not wave a USDC pair
+			// through (and denominate its P&L in the wrong unit).
+			if (strat.require_sol_quote !== false) {
+				const quoteMint = quote.quoteMint;
+				if (!quoteMint || typeof quoteMint.toBase58 !== 'function') {
+					return await fail(store, log, posId, tag, 'quote_mint_missing');
+				}
+				if (quoteMint.toBase58() !== WSOL_MINT && !quoteMint.equals?.(PublicKey.default)) {
+					return await fail(store, log, posId, tag, 'quote_not_sol');
+				}
 			}
 			const impact = checkPriceImpact(Number(quote.priceImpactPct), Number(strat.max_price_impact_pct));
 			if (impact) return await fail(store, log, posId, tag, impact.reason);
@@ -171,7 +179,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 			screen(`Buying $${symOf(candidate)} — sending tx`, 'trade');
 			if (cfg.mode === 'live') {
 				const tipMode = ['economy', 'turbo'].includes(strat.mev_tip_mode) ? strat.mev_tip_mode : 'off';
-				const onTip = makeTipGuard({ strat, spentLamports: spent, committedLamports: perTrade, store, mint: candidate.mint });
+				const onTip = makeTipGuard({ strat, network: cfg.network, spentLamports: spent, committedLamports: perTrade, store, mint: candidate.mint });
 				let result;
 				try {
 					result = await executor.submit({
@@ -342,8 +350,8 @@ export async function executeSell({ cfg, position: snapshot, reason, ports, frac
 
 // Veto hook the executor calls before appending a Jito tip. A tip is real SOL
 // leaving the wallet, so it must obey the same daily budget. Throws to veto.
-function makeTipGuard({ strat, spentLamports, committedLamports, store, mint }) {
-	return async function onTip(tipLamports, route) {
+function makeTipGuard({ strat, network, spentLamports, committedLamports, store, mint }) {
+	return async function onTip(tipLamports) {
 		const tip = BigInt(tipLamports);
 		if (tip <= 0n) return;
 		if (strat.kill_switch === true) throw Object.assign(new Error('strategy kill switch is on'), { code: 'spend_guard' });
@@ -352,10 +360,9 @@ function makeTipGuard({ strat, spentLamports, committedLamports, store, mint }) 
 			throw Object.assign(new Error('tip would exceed daily budget'), { code: 'spend_guard' });
 		}
 		await safeAsync(() => store.recordSpend?.({
-			agentId: strat.agent_id, userId: strat.user_id, category: 'mev_tip', network: strat.network || 'mainnet',
+			agentId: strat.agent_id, userId: strat.user_id, category: 'mev_tip', network,
 			amountLamports: tip, signature: null, mint, status: 'confirmed',
 		}));
-		void route;
 	};
 }
 
