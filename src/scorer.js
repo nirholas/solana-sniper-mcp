@@ -36,6 +36,14 @@ export function learnedScore(signals, weights) {
 	return Number(Math.max(-0.5, Math.min(0.5, acc)).toFixed(4));
 }
 
+/** A numeric env var, or null when unset or not a finite number. */
+function mcEnv(k) {
+	const v = typeof process !== 'undefined' ? process.env?.[k] : null;
+	if (v == null || v === '') return null;
+	const x = Number(v);
+	return Number.isFinite(x) ? x : null;
+}
+
 /**
  * Score a fresh launch for a `new_mint` strategy. Fires blind on the create
  * event, so it leans on hard creator/market filters.
@@ -44,13 +52,6 @@ export function learnedScore(signals, weights) {
  * @param {import('./types.js').Strategy} strat
  * @returns {{ pass: boolean, score: number, reasons: string[] }}
  */
-function mcEnv(k) {
-	const v = typeof process !== 'undefined' ? process.env?.[k] : null;
-	if (v == null || v === '') return null;
-	const x = Number(v);
-	return Number.isFinite(x) ? x : null;
-}
-
 export function scoreMint(mint, strat) {
 	const reasons = [];
 	let score = 0;

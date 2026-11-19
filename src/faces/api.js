@@ -261,6 +261,13 @@ export async function createSniperApiRouter(deps = {}) {
 	 *   4. neither → 503.
 	 * `onUnsettled(req)` undoes the work when a paid request ends without a
 	 * settled payment (e.g. the facilitator's /settle fails after the work ran).
+	 *
+	 * @param {keyof typeof DEFAULT_PRICES} priceKey
+	 * @param {{
+	 *   validate: (req: any, ctx: { admin: boolean }) => unknown,
+	 *   handler: (req: any, res: any, ctx: { admin?: boolean, payer?: string, paymentHash?: string, input: any }) => Promise<unknown>,
+	 *   onUnsettled?: (req: any) => Promise<void>,
+	 * }} route
 	 */
 	function gate(priceKey, { validate, handler, onUnsettled }) {
 		const paidPath = x402Configured

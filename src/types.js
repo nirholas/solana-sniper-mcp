@@ -52,6 +52,7 @@
  * @property {boolean} [avoid_dev_dump]        intel trigger, default true
  * @property {string[]} [allowed_categories]
  * @property {string} [telegram_chat_id]
+ * @property {string} [owner]                  set by the HTTP API: the x402 payer that armed it
  */
 
 /**
@@ -86,7 +87,10 @@
  * @property {'mainnet'|'devnet'} network
  * @property {string} mint
  * @property {string} [symbol]
+ * @property {string|null} [name]
  * @property {'opening'|'open'|'closing'|'closed'|'failed'} status
+ * @property {string} [entry_trigger]
+ * @property {string|null} [trigger_ref]
  * @property {string|number|bigint} [entry_quote_lamports]
  * @property {string|number|bigint} [base_amount]
  * @property {number} [peak_value_lamports]
@@ -102,7 +106,20 @@
  * @property {string|number|bigint} [realized_pnl_lamports]
  * @property {number} [opened_at_ms]
  * @property {boolean} [kill_switch]
- * @property {string} [error]
+ * @property {string|null} [error]
+ * @property {string|null} [buy_sig]
+ * @property {string|null} [sell_sig]
+ * @property {string|null} [exit_reason]
+ * @property {string} [exit_quote_lamports]
+ * @property {number|null} [realized_pnl_pct]
+ * @property {number} [entry_price_lamports_per_token]
+ * @property {number} [entry_price_impact_pct]
+ * @property {string} [exec_route]
+ * @property {string|null} [tip_lamports]
+ * @property {string|null} [priority_fee_microlamports]
+ * @property {number|null} [landed_ms]
+ * @property {number} [created_at_ms]
+ * @property {number} [closed_at_ms]
  */
 
 /**
@@ -127,6 +144,15 @@
  *   Positions in status 'open' (and 'opening' older than a grace window).
  * @property {(e: SpendEvent) => Promise<void>} [recordSpend]
  *   Optional audit/ledger write. Absent ⇒ no-op.
+ *
+ * Optional management methods the CLI, MCP and HTTP faces use when present
+ * (both bundled stores implement all but upsertStrategy/disableStrategy):
+ * @property {(s: Strategy) => unknown} [addStrategy]      insert or replace by id
+ * @property {(s: Strategy) => unknown} [upsertStrategy]   alternative to addStrategy
+ * @property {(id: string) => unknown} [removeStrategy]
+ * @property {(id: string) => unknown} [disableStrategy]   set enabled=false
+ * @property {(id: string) => Promise<Strategy|null>} [getStrategy]
+ * @property {(q?: { agentId?: string, network?: string, status?: string }) => Promise<Position[]>} [listPositions]
  */
 
 /**

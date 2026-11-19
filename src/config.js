@@ -18,9 +18,31 @@ function bool(name, def = false) {
 }
 
 /**
- * @param {Partial<ReturnType<typeof loadConfig>> & { confirmLive?: boolean }} [overrides]
+ * @typedef {object} SniperConfig
+ * @property {'mainnet'|'devnet'} network
+ * @property {'live'|'simulate'} mode
+ * @property {string|null} rpcUrl
+ * @property {boolean} globalKill
+ * @property {number} pollMs
+ * @property {number} strategyRefreshMs
+ * @property {number} maxGlobalBuysPerMin
+ * @property {number} buyConcurrency
+ * @property {number} buyQueueDepth
+ * @property {number} confirmTimeoutMs
+ * @property {number} feedWatchdogMs
+ * @property {boolean} exitOnBearish
+ * @property {number} exitBearishMinConfidence
+ */
+
+/**
+ * @typedef {Partial<SniperConfig> & { confirmLive?: boolean }} ConfigOverrides
  *   `confirmLive: true` is required, in addition to `mode: 'live'`, before the
  *   engine will broadcast.
+ */
+
+/**
+ * @param {ConfigOverrides} [overrides]
+ * @returns {Readonly<SniperConfig>}
  */
 export function loadConfig(overrides = {}) {
 	const network = (overrides.network || process.env.SNIPER_NETWORK || 'mainnet').trim();
@@ -52,6 +74,7 @@ export function loadConfig(overrides = {}) {
 		throw new Error('[agent-sniper] live mode requires rpcUrl / SOLANA_RPC_URL or HELIUS_API_KEY (public RPC will rate-limit)');
 	}
 
+	/** @type {SniperConfig} */
 	const cfg = {
 		network,
 		mode,

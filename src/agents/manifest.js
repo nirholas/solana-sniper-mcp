@@ -96,8 +96,8 @@ function resolveAvatar(avatarId) {
  * Lamport fields are converted to SOL for display; the raw strategy is never
  * mutated. The returned shape is what a desk spawner / web watch view consumes.
  *
- * @param {object} p
- * @param {import('../types.js').Strategy} p.strategy   the armed strategy to embody
+ * @param {object} [p]
+ * @param {import('../types.js').Strategy} [p.strategy]   the armed strategy to embody (required; validated)
  * @param {string} [p.avatarId]   one of AGENT_AVATARS[].id (falls back to default)
  * @param {string} [p.name]       display name override (else strategy.agent_name)
  * @returns {{
@@ -151,6 +151,7 @@ const ACCENTS = Object.freeze({
 });
 
 /** Map a raw screen-push kind to a normalized phase. */
+/** @returns {'analysis'|'trade'|'activity'} */
 function normalizePhase(kind) {
 	const k = String(kind || 'activity').toLowerCase();
 	if (k === 'analysis' || k === 'scored' || k === 'score' || k === 'hold') return 'analysis';
@@ -212,7 +213,7 @@ export function deskMonitorFrame(event = {}, ts = null) {
 		accent = ACCENTS.activity;
 	}
 
-	/** @type {{ ts: number|null, phase: string, line: string, accent: string, ticker?: object }} */
+	/** @type {{ ts: number|null, phase: 'analysis'|'trade'|'activity', line: string, accent: string, ticker?: { symbol: string|null, solDelta: number|null, pct: number|null } }} */
 	const frame = {
 		ts: ts ?? null,
 		phase,

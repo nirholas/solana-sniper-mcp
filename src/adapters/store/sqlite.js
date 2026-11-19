@@ -388,7 +388,10 @@ export function createSqliteStore(opts = {}) {
 			});
 		},
 
-		/** Convenience for faces (MCP/API/CLI): list positions for an agent. */
+		/**
+		 * Convenience for faces (MCP/API/CLI): list positions for an agent.
+		 * @param {{ agentId?: string, network?: string, status?: string }} [q]
+		 */
 		async listPositions({ agentId, network, status } = {}) {
 			const where = [];
 			const args = [];

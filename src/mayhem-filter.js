@@ -50,7 +50,11 @@ export async function retryWhileNull(fn, { retries = 2, delayMs = 350 } = {}) {
  * @param {number} [o.retryDelayMs=350]      base backoff between attempts (doubles per retry)
  * @param {{ warn: (msg: string, fields?: object) => void }} [o.logger]  defaults to the stderr JSON logger
  * @param {number} [o.cacheLimit=20000]      definitive answers kept before the oldest are evicted
- * @returns {{ oracleGate: Function, isMayhem: Function, stats: Function }}
+ * @returns {{
+ *   oracleGate: (p: { candidate?: { mint?: string } }) => Promise<{ pass: boolean, reason?: string, skipped?: boolean }>,
+ *   isMayhem: (mint: string) => Promise<boolean|null>,
+ *   stats: () => { checked: number, mayhem: number, unknown: number },
+ * }}
  */
 export function createMayhemFilter({ rpcUrl, connection = null, strictOnUnknown = false, retries = 2, retryDelayMs = 350, logger = defaultLog, cacheLimit = CACHE_LIMIT } = {}) {
 	const conn = connection || new Connection(rpcUrl || 'https://api.mainnet-beta.solana.com', 'confirmed');

@@ -48,14 +48,17 @@ const nextStrategyId = () => `strat_${Date.now().toString(36)}_${(++_idSeq).toSt
 // MCP result envelope helpers. Every handler returns JSON in both a text content
 // block (for clients that only read content) and structuredContent (for clients on
 // the typed-result path). Errors flip isError but still carry a readable payload.
+const TEXT = /** @type {const} */ ('text');
+/** @param {Record<string, unknown>} result */
 const ok = (result) => ({
-	content: [{ type: 'text', text: JSON.stringify(result) }],
+	content: [{ type: TEXT, text: JSON.stringify(result) }],
 	structuredContent: result,
 });
+/** @param {unknown} err */
 const fail = (err) => {
-	const message = err?.message || String(err);
+	const message = err instanceof Error ? err.message : String(err);
 	const payload = { ok: false, error: message };
-	return { content: [{ type: 'text', text: JSON.stringify(payload) }], structuredContent: payload, isError: true };
+	return { content: [{ type: TEXT, text: JSON.stringify(payload) }], structuredContent: payload, isError: true };
 };
 
 // Write a strategy through whichever method the store exposes. A generic store may
@@ -95,11 +98,12 @@ export async function createSniperMcpServer(deps = {}) {
 		const { createWeb3Executor } = await import('../adapters/solana/executor-web3.js');
 		const { createPumpPortalFeed } = await import('../adapters/feed/pumpportal.js');
 		const { createSniper } = await import('../engine.js');
-		const network = (process.env.SNIPER_NETWORK || 'mainnet').trim();
-		const mode = (process.env.SNIPER_MODE || 'simulate').trim();
-		const solana = await createPumpClient({ network });
+		const { loadConfig } = await import('../config.js');
+		// Validates SNIPER_NETWORK / SNIPER_MODE (and the live confirmation) up front.
+		const { network, mode, rpcUrl } = loadConfig();
+		const solana = await createPumpClient({ network, rpcUrl });
 		sniper = createSniper({
-			config: { network, mode },
+			config: { network, mode, rpcUrl },
 			store,
 			wallet: createSelfCustodyWallet({}),
 			solana,

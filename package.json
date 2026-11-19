@@ -58,7 +58,8 @@
 		"mcp": "node bin/agent-sniper.js mcp",
 		"serve": "node bin/agent-sniper.js serve",
 		"test": "vitest run",
-		"lint": "eslint ."
+		"lint": "eslint .",
+		"typecheck": "tsc -p jsconfig.json"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.29.0",

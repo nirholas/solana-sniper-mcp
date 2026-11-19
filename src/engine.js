@@ -14,7 +14,7 @@ import { runPositionSweep } from './positions.js';
 
 /**
  * @param {object} deps
- * @param {Partial<ReturnType<typeof loadConfig>>} [deps.config]
+ * @param {import('./config.js').ConfigOverrides} [deps.config]
  * @param {import('./types.js').Store} deps.store
  * @param {import('./types.js').Wallet} deps.wallet
  * @param {import('./types.js').SolanaClient} deps.solana
@@ -59,7 +59,7 @@ export function createSniper(deps) {
 	const stats = { events: 0, candidates: 0, buys: 0, sells: 0, errors: 0 };
 
 	const queue = makeQueue(cfg.buyConcurrency, cfg.buyQueueDepth, {
-		onError: (err) => { stats.errors++; log.error('buy job crashed', { err: err?.message }); },
+		onError: (err) => { stats.errors++; log.error('buy job crashed', { err: err instanceof Error ? err.message : String(err) }); },
 		onDrop: () => log.warn('buy queue full — dropping snipe'),
 	});
 

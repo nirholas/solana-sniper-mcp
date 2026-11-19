@@ -74,6 +74,8 @@ async function sendViaJito(rawBase64) {
  * @param {object} [opts]
  * @param {number} [opts.maxAttempts]   default 3
  * @param {boolean} [opts.simulate]     pre-simulate before first send (default true)
+ * @param {number} [opts.settleBudgetMs] how long to sweep history for a landed tx after
+ *   its blockhash expires before declaring it dead (default 12000)
  * @returns {import('../../types.js').Executor}
  */
 export function createWeb3Executor(opts = {}) {

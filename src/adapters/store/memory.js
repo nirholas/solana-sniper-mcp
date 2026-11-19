@@ -78,13 +78,14 @@ export function createMemoryStore(seed = {}) {
 					return null; // slot already held
 				}
 			}
+			/** @type {import('../../types.js').Position} */
 			const pos = {
 				id: nextId(),
 				strategy_id: strategy.id,
 				agent_id: strategy.agent_id,
 				user_id: strategy.user_id,
 				wallet: 'pending',
-				network,
+				network: /** @type {'mainnet'|'devnet'} */ (network),
 				mint: candidate.mint,
 				symbol: candidate.symbol || null,
 				name: candidate.name || null,
@@ -128,7 +129,10 @@ export function createMemoryStore(seed = {}) {
 			spend.push({ agentId: e.agentId, network: e.network, amountLamports: BigInt(e.amountLamports), at: Date.now(), category: e.category });
 		},
 
-		/** Convenience for faces (MCP/API/CLI): list positions for an agent. */
+		/**
+		 * Convenience for faces (MCP/API/CLI): list positions for an agent.
+		 * @param {{ agentId?: string, network?: string, status?: string }} [q]
+		 */
 		async listPositions({ agentId, network, status } = {}) {
 			const out = [];
 			for (const p of positions.values()) {

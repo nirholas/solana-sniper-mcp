@@ -8,7 +8,8 @@
 		"noEmit": true,
 		"strict": false,
 		"skipLibCheck": true,
-		"resolveJsonModule": true
+		"resolveJsonModule": true,
+		"maxNodeModuleJsDepth": 0
 	},
-	"include": ["src/**/*.js", "bin/**/*.js", "test/**/*.js"]
+	"include": ["src/**/*.js", "bin/**/*.js"]
 }

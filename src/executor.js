@@ -196,6 +196,7 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 			if (baseAmount <= 0n) return await fail(store, log, posId, tag, 'zero_tokens');
 
 			let sig = 'SIMULATED';
+			/** @type {Omit<import('./types.js').ExecResult, 'signature'>} */
 			let exec = { route: 'simulated', tipLamports: 0n, priorityFeeMicroLamports: null, landedMs: null, attempts: 0 };
 			screen(`Buying $${symOf(candidate)} — sending tx`, 'trade');
 			if (cfg.mode === 'live') {
@@ -258,6 +259,8 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
  * @param {import('./types.js').Position} p.position
  * @param {string} p.reason
  * @param {Ports} p.ports
+ * @param {number} [p.fraction]           share of the current bag to sell (laddered exits); default 1
+ * @param {boolean} [p.recoversInitials]  mark the position's initials as recovered after this leg
  */
 export async function executeSell({ cfg, position: snapshot, reason, ports, fraction = 1, recoversInitials = false }) {
 	const { store, wallet, solana, executor, hooks, log } = ports;

@@ -28,6 +28,8 @@ Scripts:
 - `npm run mcp`: `node bin/agent-sniper.js mcp`
 - `npm run serve`: `node bin/agent-sniper.js serve`
 - `npm run test`: `vitest run`
+- `npm run lint`: `eslint .`
+- `npm run typecheck`: `tsc -p jsconfig.json` (JSDoc types in `src/` and `bin/`)
 
 ## Conventions
 

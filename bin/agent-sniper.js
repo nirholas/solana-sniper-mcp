@@ -54,6 +54,7 @@ function parseArgv(argv) {
 // instead of a raw Node stack trace.
 class CliError extends Error {}
 
+/** @param {string} msg @returns {never} */
 function fail(msg) { throw new CliError(msg); }
 
 function readFileMaybe(p) {
@@ -188,6 +189,7 @@ async function buildSniper(flags, { screen = false } = {}) {
 		store = createMemoryStore({ strategies });
 	}
 
+	/** @type {import('../src/types.js').Hooks} */
 	const hooks = {};
 	if (screen) {
 		// Pretty per-event line to stderr so stdout stays clean for piping.
@@ -235,6 +237,10 @@ async function buildSniper(flags, { screen = false } = {}) {
 // Drain the engine (in-flight buys and the current sweep) before exiting on
 // SIGINT/SIGTERM, then run the face's own cleanup. A second signal while
 // draining is ignored rather than killing a trade mid-broadcast.
+/**
+ * @param {{ stop: () => Promise<void> }} sniper
+ * @param {{ onStop?: () => unknown, announce?: (sig: string) => void }} [opts]
+ */
 function exitOnSignal(sniper, { onStop, announce } = {}) {
 	let stopping = false;
 	const shutdown = async (sig) => {
@@ -315,7 +321,7 @@ async function cmdServe(flags) {
 		}
 		throw err;
 	}
-	const serve = mod.serve || mod.default;
+	const serve = mod.serve;
 	if (typeof serve !== 'function') fail('api face not available');
 	const { server } = await serve({ sniper, store }, { port });
 	exitOnSignal(sniper, { onStop: () => new Promise((resolve) => server.close(resolve)) });
