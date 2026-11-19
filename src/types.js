@@ -131,7 +131,9 @@
  * @property {bigint} amountLamports
  * @property {string|null} [signature]
  * @property {string} [mint]
- * @property {'ok'|'confirmed'} status
+ * @property {'ok'|'confirmed'|'unconfirmed'} status
+ *   'unconfirmed' marks a live buy whose landing could not be determined; it
+ *   still counts toward the daily budget.
  */
 
 /**
@@ -185,6 +187,11 @@
 /**
  * Executor — the one place that signs and broadcasts. Return landing telemetry.
  * In simulate mode the engine never calls this (sig = 'SIMULATED').
+ *
+ * Errors: throw with `code` 'not_broadcast', 'sim_failed' or 'tx_err' only when
+ * the transaction provably did not land. Any other error is read as "may have
+ * landed": the engine keeps the position's slot held, counts the spend, and
+ * logs `sentSignatures` (if the error carries them) for reconciliation.
  *
  * @typedef {object} Executor
  * @property {(p: SubmitReq) => Promise<ExecResult>} submit

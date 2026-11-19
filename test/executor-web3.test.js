@@ -141,3 +141,13 @@ describe('createWeb3Executor duplicate-broadcast safety', () => {
 		expect(connection.distinct.size).toBe(1);
 	});
 });
+
+describe('createWeb3Executor error classification', () => {
+	it('a failure before anything is broadcast is reported as not_broadcast', async () => {
+		const connection = mockConnection({});
+		connection.getLatestBlockhash = async () => { throw new Error('rpc 503'); };
+		const exec = createWeb3Executor({ simulate: true });
+		await expect(exec.submit(submitArgs(connection))).rejects.toMatchObject({ code: 'not_broadcast' });
+		expect(connection.distinct.size).toBe(0);
+	});
+});

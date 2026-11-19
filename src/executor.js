@@ -172,10 +172,16 @@ export async function executeBuy({ cfg, strat, candidate, throttle, ports }) {
 			if (cfg.mode === 'live') {
 				const tipMode = ['economy', 'turbo'].includes(strat.mev_tip_mode) ? strat.mev_tip_mode : 'off';
 				const onTip = makeTipGuard({ strat, spentLamports: spent, committedLamports: perTrade, store, mint: candidate.mint });
-				const result = await executor.submit({
-					network: cfg.network, connection: solana.connection, payer: keypair,
-					instructions: built.instructions, confirmTimeoutMs: cfg.confirmTimeoutMs, tipMode, onTip,
-				});
+				let result;
+				try {
+					result = await executor.submit({
+						network: cfg.network, connection: solana.connection, payer: keypair,
+						instructions: built.instructions, confirmTimeoutMs: cfg.confirmTimeoutMs, tipMode, onTip,
+					});
+				} catch (err) {
+					if (DEFINITELY_NOT_LANDED.has(err?.code)) throw err;
+					return await holdUnknownLanding({ err, store, log, posId, tag, strat, cfg, perTrade, candidate, screen });
+				}
 				sig = result.signature;
 				exec = result;
 				log.trade('exec', { ...tag, route: result.route, tip: String(result.tipLamports ?? 0n), fee: result.priorityFeeMicroLamports, landed_ms: result.landedMs, attempts: result.attempts, fallback: result.fallbackReason || null });
@@ -363,6 +369,34 @@ function buildDecision({ strat, network, candidate, posId, sig, mode, priceImpac
 		prediction: { direction: 'up', basis: 'snipe entry expects a profitable exit', metric: 'realized_pnl' },
 		rationale: `Sniped $${symOf(candidate)} on a ${trigger} trigger with ${priceImpactPct.toFixed(2)}% price impact${firewall ? `; firewall ${firewall.verdict} (score ${firewall.score})` : ''}. Committed ${perTradeSol.toFixed(4)} SOL expecting a profitable exit.`,
 	};
+}
+
+// Executor error codes that prove the buy did not land: nothing was broadcast,
+// simulation rejected it, or it failed on-chain. Any other submit error means
+// the transaction may have landed.
+const DEFINITELY_NOT_LANDED = new Set(['not_broadcast', 'sim_failed', 'tx_err']);
+
+// A live buy whose landing could not be determined. Treating it as failed would
+// free the (agent, mint) slot, so the next event could buy the same coin again,
+// and would leave the SOL out of the daily budget. Instead the position keeps
+// its slot in status 'opening' (it still counts toward max_concurrent_positions
+// and claimPosition still sees it as held), the spend is counted, and the
+// broadcast signatures are recorded so an operator can reconcile it.
+async function holdUnknownLanding({ err, store, log, posId, tag, strat, cfg, perTrade, candidate, screen }) {
+	const signatures = Array.isArray(err?.sentSignatures) ? err.sentSignatures : [];
+	await store.updatePosition(posId, {
+		status: 'opening',
+		error: `landing_unknown: ${errCode(err)}`.slice(0, 280),
+		buy_sig: signatures[0] ?? null,
+		entry_quote_lamports: perTrade.toString(),
+	});
+	await safeAsync(() => store.recordSpend?.({
+		agentId: strat.agent_id, userId: strat.user_id, category: 'snipe', network: cfg.network,
+		amountLamports: perTrade, signature: signatures[0] ?? null, mint: candidate.mint, status: 'unconfirmed',
+	}));
+	log.error('buy landing unknown: slot held and spend counted, reconcile before retrying', { ...tag, code: errCode(err), signatures, err: err?.message });
+	screen(`$${symOf(candidate)} buy landing unknown, holding the slot; check ${signatures[0] || 'the wallet'}`, 'activity');
+	return { status: 'unknown', reason: 'landing_unknown', posId, signatures };
 }
 
 function skip(log, tag, reason) { log.info('skip', { ...tag, reason }); return { status: 'skip', reason }; }

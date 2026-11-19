@@ -233,6 +233,11 @@ export function createWeb3Executor(opts = {}) {
 						throw err; // terminal: the trade genuinely failed on-chain
 					}
 					lastErr = err;
+					if (!sent.length) {
+						// Failed before anything was signed and broadcast (blockhash
+						// fetch, simulation RPC error): provably not landed.
+						throw Object.assign(new Error(`nothing broadcast: ${err?.message || err}`), { code: 'not_broadcast', cause: err });
+					}
 					const p = await landedAmongSent();
 					if (p) return result(p, viaJito ? jitoRoute(tipMode) : 'standard', fee, attempt + 1, viaJito ? tipLamports : 0n);
 					throw ambiguous(err); // in-flight & unknown — never resend

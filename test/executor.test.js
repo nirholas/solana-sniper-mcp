@@ -185,3 +185,50 @@ describe('engine — position sweep', () => {
 		await sniper.stop({ timeoutMs: 10 });
 	});
 });
+
+describe('executeBuy — live landing outcomes', () => {
+	const liveCfg = () => loadConfig({ network: 'devnet', mode: 'live', rpcUrl: 'http://127.0.0.1:8899', confirmLive: true });
+
+	it('an ambiguous landing keeps the slot held and counts the spend', async () => {
+		const executor = {
+			submit: vi.fn(async () => {
+				throw Object.assign(new Error('landing ambiguous'), { code: 'landing_ambiguous', sentSignatures: ['sigA', 'sigB'] });
+			}),
+		};
+		const p = ports({ executor });
+		const strat = strategy();
+		const res = await executeBuy({ cfg: liveCfg(), strat, candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(res).toMatchObject({ status: 'unknown', reason: 'landing_unknown', signatures: ['sigA', 'sigB'] });
+
+		const pos = await p.store.getPosition(res.posId);
+		expect(pos.status).toBe('opening');
+		expect(pos.buy_sig).toBe('sigA');
+		expect(pos.error).toMatch(/landing_unknown/);
+		expect(await p.store.getDailySpendLamports('agent_1', 'devnet')).toBe(100_000_000n);
+		expect(await p.store.countOpenPositions('agent_1', 'devnet')).toBe(1);
+
+		// The same coin must not be bought again while its first buy is unresolved.
+		const again = await executeBuy({ cfg: liveCfg(), strat, candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(again.reason).toBe('already_held');
+		expect(executor.submit).toHaveBeenCalledTimes(1);
+	});
+
+	it('a definitive on-chain failure frees the slot and spends nothing', async () => {
+		let n = 0;
+		const executor = {
+			submit: vi.fn(async () => {
+				n++;
+				if (n === 1) throw Object.assign(new Error('slippage'), { code: 'tx_err' });
+				return { signature: 'sig_ok', route: 'standard' };
+			}),
+		};
+		const p = ports({ executor });
+		const strat = strategy();
+		const first = await executeBuy({ cfg: liveCfg(), strat, candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(first).toMatchObject({ status: 'failed', reason: 'tx_err' });
+		expect(await p.store.getDailySpendLamports('agent_1', 'devnet')).toBe(0n);
+
+		const second = await executeBuy({ cfg: liveCfg(), strat, candidate: { mint: THREE }, throttle: openThrottle, ports: p });
+		expect(second).toMatchObject({ status: 'open', sig: 'sig_ok' });
+	});
+});
