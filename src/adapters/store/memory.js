@@ -36,6 +36,10 @@ export function createMemoryStore(seed = {}) {
 	return {
 		addStrategy(s) { strategies.set(s.id, { ...s }); return s; },
 		removeStrategy(id) { return strategies.delete(id); },
+		async getStrategy(id) {
+			const s = strategies.get(id);
+			return s ? { ...s } : null;
+		},
 		_positions: positions,
 		_spend: spend,
 

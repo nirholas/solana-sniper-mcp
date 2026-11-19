@@ -221,18 +221,42 @@ work, settles on-chain, and emits the receipt.
 | Method | Endpoint | Price | Notes |
 |--------|----------|-------|-------|
 | GET  | `/health` | free | Liveness + network/mode/stats. |
-| GET  | `/status` | free | Full stats + immutable runtime config. |
+| GET  | `/status` | free | Full stats + runtime config (RPC URL reduced to its origin). |
 | GET  | `/strategies` | free | The armed strategy set. |
 | GET  | `/positions?agentId=&status=` | free | Positions from the store. |
 | GET  | `/activity` | free | The recent engine screen events (what the console feed renders). |
 | GET  | `/` and `/console` | free | The built-in operator console (see below). |
 | POST | `/strategies` | **$0.01 USDC** | Arm a strategy (SOL → lamports; stop-loss required). |
-| POST | `/snipe` | **$0.05 USDC** | Force a snipe on `{ mint, symbol?, agentId? }`. |
-| POST | `/strategies/:id/disarm` | **$0.005 USDC** | Disable a strategy. |
-| POST | `/positions/:id/close` | **$0.005 USDC** | Schedule an exit; the next sweep sells it. |
+| POST | `/snipe` | **$0.05 USDC** | Force a snipe on `{ mint, symbol?, agentId? }` with your own strategies. |
+| POST | `/strategies/:id/disarm` | **$0.005 USDC** | Disable a strategy you own. |
+| POST | `/positions/:id/close` | **$0.005 USDC** | Schedule an exit for a position you own; the next sweep sells it. |
 
 Prices are the defaults (USDC atomic units, 6 decimals); override via
-`deps.prices = { arm, snipe, disarm, close }`.
+`deps.prices = { arm, snipe, disarm, close }` (positive integer strings).
+
+**What a paid caller can do.** Payers are untrusted, so the API scopes every
+paid request to the payer the facilitator reports:
+
+- The body is validated with the same strategy schema as the MCP server, and a
+  bad request gets a `4xx` **before** the 402 challenge. A paid request that is
+  refused after verification (not the owner, nothing to snipe) is answered
+  without settling, so the payer is not charged.
+- A paid strategy is owned by its payer: its `agent_id` is stored as
+  `x402:<payer>:<agent_id>` and its id is derived from the payment, so a payer
+  can neither overwrite another strategy nor trade with another agent's wallet.
+  Privileged fields (`user_id`, `kill_switch`, `owner`, ...) are ignored.
+- A paid snipe only fires the payer's own armed strategies. Disarm and close
+  only work on what the payer owns. Operator strategies need the admin token.
+- One `X-PAYMENT` header is processed once per process, and an arm whose
+  settlement fails is rolled back.
+- **Live mode:** paid callers cannot arm or snipe at all unless the operator
+  sets `deps.allowPaidLive: true` (or `SNIPER_API_ALLOW_PAID_LIVE=yes`). Paid
+  strategies spend from wallets the operator holds, including the default
+  `SOLANA_SECRET_KEY` fallback, so enable this only if that is what you intend.
+
+The API reads and writes the engine's own store (`sniper.store`), so a strategy
+armed over HTTP is the one the engine evaluates. `/status` shows only the origin
+of the RPC URL, since provider URLs often embed an API key.
 
 Gating turns on when a merchant wallet is configured — `deps.payTo.solana` or the
 `X402_PAY_TO_SOLANA` env (a Base lane is available via `X402_PAY_TO_BASE`). When

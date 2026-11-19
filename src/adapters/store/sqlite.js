@@ -217,6 +217,7 @@ export function createSqliteStore(opts = {}) {
 			data          = excluded.data
 	`);
 	const stmtDeleteStrategy = db.prepare('DELETE FROM strategies WHERE id = ?');
+	const stmtGetStrategy = db.prepare('SELECT data FROM strategies WHERE id = ?');
 	const stmtArmedStrategies = db.prepare(`
 		SELECT data FROM strategies
 		WHERE enabled = 1
@@ -254,6 +255,7 @@ export function createSqliteStore(opts = {}) {
 		close() { db.close(); },
 		addStrategy(s) { return upsertStrategy(s); },
 		removeStrategy(id) { return stmtDeleteStrategy.run(id).changes > 0; },
+		async getStrategy(id) { return rowToStrategy(stmtGetStrategy.get(id)); },
 
 		async getArmedStrategies(network) {
 			return stmtArmedStrategies.all(network).map(rowToStrategy).filter(Boolean);

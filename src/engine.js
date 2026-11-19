@@ -151,18 +151,20 @@ export function createSniper(deps) {
 
 		/**
 		 * Score + (queue) a single candidate by hand — drives the `manual` trigger /
-		 * MCP snipe_now. `candidate.agent_id` narrows it to that agent's strategies;
-		 * otherwise every armed strategy is considered. `force` skips the scorer
-		 * (every pre-trade guard in executeBuy still applies). Returns how many buys
-		 * were queued.
+		 * MCP snipe_now. `candidate.agent_id` narrows it to that agent's strategies,
+		 * and `filter` narrows it further (the HTTP API uses it to restrict a paid
+		 * snipe to the payer's own strategies); otherwise every armed strategy is
+		 * considered. `force` skips the scorer (every pre-trade guard in executeBuy
+		 * still applies). Returns how many buys were queued.
 		 *
 		 * @param {import('./types.js').Candidate & { agent_id?: string }} candidate
-		 * @param {{ force?: boolean }} [opts]
+		 * @param {{ force?: boolean, filter?: (s: import('./types.js').Strategy) => boolean }} [opts]
 		 * @returns {number}
 		 */
-		submitCandidate(candidate, { force = false } = {}) {
+		submitCandidate(candidate, { force = false, filter } = {}) {
 			if (draining || cfg.globalKill || typeof candidate?.mint !== 'string' || !candidate.mint) return 0;
-			const targets = targetStrategies(candidate.agent_id);
+			const byAgent = targetStrategies(candidate.agent_id);
+			const targets = typeof filter === 'function' ? byAgent.filter(filter) : byAgent;
 			if (!force) {
 				return onEvent({ kind: candidate.entry_trigger === 'intel_confirmed' ? 'intel' : 'mint', data: candidate }, targets);
 			}
