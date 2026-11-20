@@ -22,6 +22,7 @@ export { loadConfig } from './config.js';
 export { scoreMint, scoreIntel, learnedScore } from './scorer.js';
 export { decideExit } from './exit-logic.js';
 export { createMayhemFilter, retryWhileNull } from './mayhem-filter.js';
+export { createVeriqlFirewall } from './veriql-firewall.js';
 export {
 	checkConcurrency, checkDailyBudgetLamports, checkSolHeadroom, checkPriceImpact,
 	makeThrottle, makeQueue, SOL_FEE_HEADROOM_LAMPORTS,
